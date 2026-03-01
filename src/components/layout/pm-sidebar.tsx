@@ -164,9 +164,14 @@ function SidebarContent({
             />
           </div>
         ) : (
-          <div className="w-8 h-8 rounded-md bg-accent flex items-center justify-center">
-            <span className="text-white font-bold text-sm">M</span>
-          </div>
+          <Image
+            src="/apple-touch-icon.png"
+            alt="MMZ"
+            width={32}
+            height={32}
+            className="rounded-md"
+            priority
+          />
         )}
       </div>
 
