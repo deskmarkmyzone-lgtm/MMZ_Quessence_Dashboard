@@ -1,6 +1,6 @@
 # MMZ Dashboard — Project Status & Handoff Document
 
-> **Last Updated**: 2026-03-01
+> **Last Updated**: 2026-03-02
 >
 > This document tracks what has been built, what's left, and everything a new developer
 > needs to pick this project up. For the full business requirements, data model, and
@@ -72,7 +72,7 @@ For the full business context, see [REQUIREMENTS.md sections 1-6](./REQUIREMENTS
 | Database Migrations | 4 |
 | Custom Hooks | 2 |
 
-**Build Status**: 0 errors, 57 routes compiled.
+**Build Status**: 0 errors, 57 routes compiled. Deployed to Vercel at app.markmyzone.com.
 
 ---
 
@@ -85,6 +85,7 @@ For the full business context, see [REQUIREMENTS.md sections 1-6](./REQUIREMENTS
 | Phase 3 | Polish — Session Persistence, Scroll Restoration, WhatsApp Share, Analytics, Vacancy Tracking | **COMPLETED** | Mar 2026 |
 | Phase 4 | Advanced — Predictive Maintenance | **PARTIALLY COMPLETED** | Mar 2026 |
 | Phase 4+ | WhatsApp API, Tenant Portal, Multi-language, Tally export, etc. | **PARKED** | — |
+| Phase 5 | Deployment — GitHub, Vercel, PWA fixes, favicon, auto-update | **COMPLETED** | Mar 2026 |
 
 ---
 
@@ -438,6 +439,26 @@ Every page follows the same pattern:
 ### Parked (not started):
 See [Section 11](#11-parked--items-for-future-development) below.
 
+### Phase 5 — Deployment & Infrastructure (COMPLETED)
+
+**Goal**: Production deployment, PWA fixes, and developer experience improvements.
+
+#### What was built/fixed:
+- [x] **GitHub repository** — Code pushed to `deskmarkmyzone-lgtm/MMZ_Quessence_Dashboard`
+- [x] **Vercel deployment** — Auto-deploys on push, live at `https://mmz-quessence-dashboard.vercel.app`
+- [x] **Custom domain** — `app.markmyzone.com` (via Namecheap CNAME → Vercel)
+- [x] **Google OAuth production config** — Updated Google Cloud Console + Supabase redirect URLs for production domain
+- [x] **CSS HMR fix** — Bypassed `next-pwa` wrapper in development mode to prevent CSS hot-reload breaking
+- [x] **Turbopack** — Enabled `--turbo` flag for faster dev server CSS updates
+- [x] **PostCSS** — Added `autoprefixer` to PostCSS config
+- [x] **Favicon + webclip** — Added 32x32 PNG favicon, apple-touch-icon (256x256), PWA icons
+- [x] **Android PWA icon** — Added PNG icons to manifest.json (Android requires PNG, not SVG)
+- [x] **iPhone sidebar fix** — Changed `h-screen` to `h-dvh` for Dynamic Island safe area
+- [x] **Sidebar logo** — Replaced generic "M" icon with actual MMZ logo in collapsed sidebar
+- [x] **PWA auto-update** — Added PWAUpdater component that detects new deployments and auto-reloads
+- [x] **No-cache headers** — `sw.js` and `manifest.json` served with `no-cache` to ensure fresh service worker
+- [x] **Monthly rent back button** — Added `backHref` to monthly rent grid page header
+
 ---
 
 ## 11. PARKED — Items for Future Development
@@ -568,6 +589,20 @@ npm run build  # Should show 0 errors, 57 routes
 npm start      # Production server
 ```
 
+### Production Deployment
+
+The app is deployed on Vercel with auto-deploy from GitHub:
+
+- **Repository**: `https://github.com/deskmarkmyzone-lgtm/MMZ_Quessence_Dashboard`
+- **Vercel URL**: `https://mmz-quessence-dashboard.vercel.app`
+- **Custom Domain**: `app.markmyzone.com`
+- **DNS**: Namecheap CNAME record `app` → `cname.vercel-dns.com`
+
+#### Post-Deploy Configuration
+After deploying to a new domain, update:
+1. **Supabase** → Authentication → URL Configuration → Site URL + Redirect URLs
+2. **Google Cloud Console** → OAuth Client → Authorized JS Origins + Redirect URIs
+
 ### Environment Variables
 ```bash
 # Required
@@ -659,6 +694,7 @@ Owner auto-linking:
 | File storage limited to 1GB | Supabase free tier storage limit | Upgrade to Pro ($25/mo) when approaching limit |
 | Flat numbers assume XYZN format | Only works for Prestige High Fields numbering | Free-text flat numbers supported for other communities |
 | No CI/CD pipeline | Manual deploys via Vercel | Set up GitHub Actions if team grows |
+| PWA icon change requires reinstall | Changing the app icon requires users to uninstall and reinstall the PWA | OS-level limitation, no workaround |
 
 ---
 
@@ -784,6 +820,9 @@ Use this to verify the application works correctly after any major changes.
 | Image Compression | browser-image-compression |
 | Drag & Drop | dnd-kit |
 | Command Palette | cmdk |
+| Hosting | Vercel (auto-deploy from GitHub) |
+| Domain | app.markmyzone.com (Namecheap) |
+| PWA | next-pwa + custom PWAUpdater auto-reload |
 
 ---
 

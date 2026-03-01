@@ -2,8 +2,8 @@
 
 > **Project:** Mark My Zone Property Management Dashboard
 > **Version:** 1.0
-> **Date:** 2026-03-01
-> **Total Test Cases:** 186
+> **Date:** 2026-03-02
+> **Total Test Cases:** 198
 > **Framework:** Next.js 14 (App Router), Supabase, TypeScript
 > **Portals:** PM (Property Manager) and Owner
 
@@ -32,7 +32,8 @@
 19. [Module 18: Data Import](#module-18-data-import)
 20. [Module 19: Owner Portal](#module-19-owner-portal)
 21. [Module 20: Cross-Cutting Concerns](#module-20-cross-cutting-concerns)
-22. [Summary Table](#summary-table)
+22. [Module 21: Deployment & PWA](#module-21-deployment--pwa)
+23. [Summary Table](#summary-table)
 
 ---
 
@@ -2303,6 +2304,149 @@
 
 ---
 
+## Module 21: Deployment & PWA
+
+### TC-DEPLOY-001: Vercel Auto-Deploy
+
+- **Precondition**: Code pushed to GitHub `main` branch
+- **Steps**:
+  1. Push a commit to the `main` branch of `deskmarkmyzone-lgtm/MMZ_Quessence_Dashboard`
+  2. Open Vercel dashboard
+  3. Wait for deployment to complete
+- **Expected Result**: New deployment appears in Vercel, site is live at `app.markmyzone.com` with the latest changes.
+- **Priority**: Critical
+- **Status**: Passed
+
+### TC-DEPLOY-002: Custom Domain Access
+
+- **Precondition**: DNS configured, Vercel domain added
+- **Steps**:
+  1. Open `https://app.markmyzone.com` in a browser
+  2. Verify the login page loads
+  3. Verify HTTPS certificate is valid
+- **Expected Result**: Site loads with valid SSL, MMZ login page displayed correctly.
+- **Priority**: Critical
+- **Status**: Passed
+
+### TC-DEPLOY-003: Google OAuth on Production Domain
+
+- **Precondition**: Google Cloud Console and Supabase configured with production URLs
+- **Steps**:
+  1. Navigate to `https://app.markmyzone.com/login`
+  2. Click "Continue with Google"
+  3. Complete Google sign-in
+- **Expected Result**: User is authenticated and redirected to `/pm` (PM user) or `/owner` (Owner user). No redirect to localhost.
+- **Priority**: Critical
+- **Status**: Not Tested
+
+### TC-PWA-001: Android PWA Install
+
+- **Precondition**: Site deployed and accessible
+- **Steps**:
+  1. Open `app.markmyzone.com` in Chrome on Android
+  2. Tap the three-dot menu → "Install app" or "Add to home screen"
+  3. Confirm installation
+  4. Open the app from the home screen
+- **Expected Result**: App installs with MMZ logo icon. Opens in standalone mode (no browser URL bar). Login page displays correctly.
+- **Priority**: High
+- **Status**: Passed
+
+### TC-PWA-002: iOS PWA Install
+
+- **Precondition**: Site deployed and accessible
+- **Steps**:
+  1. Open `app.markmyzone.com` in Safari on iPhone
+  2. Tap the Share button (box with arrow)
+  3. Scroll down and tap "Add to Home Screen"
+  4. Confirm with "Add"
+  5. Open the app from the home screen
+- **Expected Result**: App appears on home screen with MMZ icon. Opens in standalone mode. Login page displays correctly.
+- **Priority**: High
+- **Status**: Passed
+
+### TC-PWA-003: PWA Auto-Update After Deployment
+
+- **Precondition**: PWA installed on device, new code deployed to Vercel
+- **Steps**:
+  1. Have the PWA installed and open
+  2. Push a visible UI change (e.g., text change) to GitHub
+  3. Wait for Vercel deployment to complete
+  4. Keep the PWA open for up to 5 minutes (or close and reopen)
+- **Expected Result**: The PWA auto-detects the new service worker and reloads with the updated UI. No manual cache clear needed.
+- **Priority**: High
+- **Status**: Not Tested
+
+### TC-PWA-004: PWA Manifest Icons
+
+- **Precondition**: Manifest configured with PNG icons
+- **Steps**:
+  1. Open Chrome DevTools → Application → Manifest
+  2. Verify icons section shows PNG icons (256x256)
+  3. Verify `start_url` is `/pm`
+  4. Verify `display` is `standalone`
+- **Expected Result**: Manifest is valid, all icons resolve correctly, no warnings in DevTools.
+- **Priority**: Medium
+- **Status**: Passed
+
+### TC-PWA-005: iPhone Sidebar Full Height
+
+- **Precondition**: Using iPhone with Dynamic Island or notch (iPhone 14+)
+- **Steps**:
+  1. Open the PWA on iPhone
+  2. Login to PM portal
+  3. Tap the hamburger menu icon
+  4. Observe the sidebar height
+- **Expected Result**: Sidebar extends full height of the visible screen, properly accounting for the Dynamic Island/notch and bottom home indicator. No gaps at top or bottom.
+- **Priority**: High
+- **Status**: Passed
+
+### TC-PWA-006: Sidebar Collapsed Logo
+
+- **Precondition**: Logged into PM portal on desktop
+- **Steps**:
+  1. View the collapsed sidebar (64px width)
+  2. Observe the icon at the top
+- **Expected Result**: The MMZ logo icon (from apple-touch-icon.png) is displayed instead of a generic "M" letter. Icon is 32x32 pixels with rounded corners.
+- **Priority**: Low
+- **Status**: Passed
+
+### TC-PWA-007: Favicon Display
+
+- **Precondition**: Site loaded in browser
+- **Steps**:
+  1. Open `app.markmyzone.com` in any browser
+  2. Check the browser tab icon
+  3. Check bookmarks if saved
+- **Expected Result**: Browser tab shows the MMZ favicon (32x32 PNG). Bookmark shows the same icon.
+- **Priority**: Low
+- **Status**: Passed
+
+### TC-PWA-008: Service Worker No-Cache Headers
+
+- **Precondition**: Site deployed on Vercel
+- **Steps**:
+  1. Open Chrome DevTools → Network
+  2. Navigate to the site
+  3. Find `sw.js` in the network requests
+  4. Check the response headers
+- **Expected Result**: `Cache-Control: no-cache, no-store, must-revalidate` is present on `sw.js` response headers.
+- **Priority**: Medium
+- **Status**: Not Tested
+
+### TC-DEPLOY-004: Monthly Rent Grid Back Button
+
+- **Precondition**: Logged in as PM user
+- **Steps**:
+  1. Navigate to `/pm/rent`
+  2. Click "Monthly" to go to the monthly rent grid
+  3. Observe the page header
+  4. Click the back arrow
+- **Expected Result**: Page header shows a back arrow. Clicking it navigates back to `/pm/rent`.
+- **Priority**: Low
+- **Status**: Passed
+
+---
+
 ## Summary Table
 
 | # | Module | Test Cases | Critical | High | Medium | Low |
@@ -2327,24 +2471,25 @@
 | 18 | Data Import | 4 | 0 | 1 | 2 | 1 |
 | 19 | Owner Portal | 10 | 3 | 4 | 2 | 1 |
 | 20 | Cross-Cutting Concerns | 22 | 0 | 7 | 11 | 4 |
-| | **TOTAL** | **186** | **37** | **81** | **43** | **25** |
+| 21 | Deployment & PWA | 12 | 3 | 4 | 2 | 3 |
+| | **TOTAL** | **198** | **40** | **85** | **45** | **28** |
 
 ### Priority Distribution
 
 | Priority | Count | Percentage |
 |----------|-------|------------|
-| Critical | 37 | 19.9% |
-| High | 81 | 43.5% |
-| Medium | 43 | 23.1% |
-| Low | 25 | 13.4% |
-| **Total** | **186** | **100%** |
+| Critical | 40 | 20.2% |
+| High | 85 | 42.9% |
+| Medium | 45 | 22.7% |
+| Low | 28 | 14.1% |
+| **Total** | **198** | **100%** |
 
 ### Test Execution Status
 
 | Status | Count |
 |--------|-------|
-| Not Tested | 186 |
-| Passed | 0 |
+| Not Tested | 189 |
+| Passed | 9 |
 | Failed | 0 |
 | Blocked | 0 |
 

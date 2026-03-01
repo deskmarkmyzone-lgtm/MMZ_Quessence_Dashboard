@@ -2,7 +2,7 @@
 
 > **This document is the single source of truth for the entire MMZ Dashboard project.**
 > Every requirement, design decision, data model, screen, and technical detail lives here.
-> Updated: 2026-03-01
+> Updated: 2026-03-02
 >
 > **For project status, completion tracking, and developer handoff guide, see [PROJECT_STATUS.md](./PROJECT_STATUS.md).**
 
@@ -55,7 +55,7 @@
 **Old dashboard location**: `/old_dashboard/realestate-frontend-main/` (Next.js 14, Pages Router — all features to be carried over).
 **Reference designs**: `/Example_Dashboard_designs/` (5 PNG screenshots — analytics dashboards, sci-fi minimal style).
 
-**Project Status (2026-03-01)**: Phases 1-3 fully built and functional. 57 routes, 0 build errors. Predictive maintenance (Phase 4) also complete. See [PROJECT_STATUS.md](./PROJECT_STATUS.md) for full details.
+**Project Status (2026-03-02)**: Phases 1-4 fully built and functional. 57 routes, 0 build errors. Deployed to Vercel at `app.markmyzone.com`. PWA installable on Android and iOS. See [PROJECT_STATUS.md](./PROJECT_STATUS.md) for full details.
 
 ---
 
@@ -547,6 +547,12 @@ IFSC: [ifsc code]
 | Google Drive | Free (15GB via dedicated account) |
 | Domain | ~Rs.500-800/year |
 | **Total** | **Under Rs.200/month initially** |
+
+**Production Infrastructure**:
+- **Repository**: GitHub — `deskmarkmyzone-lgtm/MMZ_Quessence_Dashboard`
+- **Hosting**: Vercel — auto-deploy on push to `main` branch
+- **Domain**: `app.markmyzone.com` — CNAME via Namecheap → `cname.vercel-dns.com`
+- **Auth**: Google OAuth (Google Cloud Console) + Supabase Auth
 
 ---
 
