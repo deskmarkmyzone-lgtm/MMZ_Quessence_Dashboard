@@ -1,0 +1,2 @@
+import { TableSkeleton } from "@/components/shared/skeleton-loader";
+export default function MaintenanceLoading() { return <TableSkeleton rows={6} cols={6} />; }
