@@ -96,7 +96,7 @@ export function PMSidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean;
       <aside
         aria-label="Main sidebar"
         className={cn(
-          "fixed left-0 top-0 z-50 h-screen bg-bg-sidebar flex flex-col transition-all duration-300 ease-in-out border-r border-border-sidebar",
+          "fixed left-0 top-0 z-50 h-dvh bg-bg-sidebar flex flex-col transition-all duration-300 ease-in-out border-r border-border-sidebar",
           // Desktop: slim sidebar with hover expand
           "hidden md:flex",
           expanded ? "w-[260px]" : "w-[64px]",
@@ -111,7 +111,7 @@ export function PMSidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean;
       <aside
         aria-label="Mobile navigation"
         className={cn(
-          "fixed left-0 top-0 z-50 h-screen w-[280px] bg-bg-sidebar flex flex-col transition-transform duration-300 ease-in-out border-r border-border-sidebar md:hidden",
+          "fixed left-0 top-0 z-50 h-dvh w-[280px] bg-bg-sidebar flex flex-col transition-transform duration-300 ease-in-out border-r border-border-sidebar md:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
