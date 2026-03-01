@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { KeyboardShortcuts } from "@/components/shared/keyboard-shortcuts";
+import { PWAUpdater } from "@/components/shared/pwa-updater";
 import "./globals.css";
 
 const inter = Inter({
@@ -68,6 +69,7 @@ export default function RootLayout({
           {children}
           <Toaster position="bottom-right" />
           <KeyboardShortcuts />
+          <PWAUpdater />
         </ThemeProvider>
       </body>
     </html>
