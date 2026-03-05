@@ -22,6 +22,38 @@ export interface RentPaymentInput {
   proof_file_ids?: string[];
 }
 
+export interface RentPaymentSummary {
+  id: string;
+  payment_month: string;
+  payment_date: string;
+  amount: number;
+  payment_method: string;
+  payment_status: string;
+}
+
+export async function fetchRentPaymentsForFlat(
+  flatId: string
+): Promise<ActionResult<RentPaymentSummary[]>> {
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("rent_payments")
+      .select("id, payment_month, payment_date, amount, payment_method, payment_status")
+      .eq("flat_id", flatId)
+      .order("payment_month", { ascending: false });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true, data: data ?? [] };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to fetch rent payments",
+    };
+  }
+}
+
 export async function recordRentPayment(
   input: RentPaymentInput
 ): Promise<ActionResult<{ id: string }>> {

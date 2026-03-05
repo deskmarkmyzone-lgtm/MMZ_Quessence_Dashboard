@@ -14,7 +14,8 @@ export { createFlat, updateFlat } from "./flats";
 
 export { createTenant, updateTenant, exitTenant } from "./tenants";
 
-export { recordRentPayment } from "./rent-payments";
+export { recordRentPayment, fetchRentPaymentsForFlat } from "./rent-payments";
+export type { RentPaymentSummary } from "./rent-payments";
 
 export { recordExpense } from "./expenses";
 

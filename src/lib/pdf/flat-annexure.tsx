@@ -15,6 +15,14 @@ export interface AnnexureDeduction {
   amount: number;
 }
 
+export interface AnnexureRentPayment {
+  month: string;
+  paidOn: string;
+  amount: number;
+  method: string;
+  status: string;
+}
+
 interface FlatAnnexureProps {
   flatNo: string;
   ownerName: string;
@@ -25,6 +33,7 @@ interface FlatAnnexureProps {
   deductions: AnnexureDeduction[];
   totalDeductions: number;
   refundAmount: number;
+  rentPayments?: AnnexureRentPayment[];
   tenantBankDetails?: {
     name: string;
     bank: string;
@@ -43,8 +52,11 @@ export function FlatAnnexurePDF({
   deductions,
   totalDeductions,
   refundAmount,
+  rentPayments,
   tenantBankDetails,
 }: FlatAnnexureProps) {
+  const rentTotal = rentPayments?.reduce((sum, p) => sum + p.amount, 0) ?? 0;
+
   return (
     <Document>
       <Page size="A4" style={s.page}>
@@ -104,6 +116,42 @@ export function FlatAnnexurePDF({
             </View>
           </View>
         ))}
+
+        {/* Rent Payment History */}
+        {rentPayments && rentPayments.length > 0 && (
+          <View style={{ marginTop: 16 }}>
+            <Text style={s.sectionTitle}>RENT PAYMENT HISTORY</Text>
+            <View style={s.table}>
+              <View style={s.tableHeader}>
+                <Text style={[s.tableHeaderCell, { width: 25 }]}>S.No</Text>
+                <Text style={[s.tableHeaderCell, { width: 80 }]}>Month</Text>
+                <Text style={[s.tableHeaderCell, { width: 75 }]}>Paid On</Text>
+                <Text style={[s.tableHeaderCell, { width: 80, textAlign: "right" }]}>Amount</Text>
+                <Text style={[s.tableHeaderCell, { flex: 1 }]}>Method</Text>
+                <Text style={[s.tableHeaderCell, { width: 50 }]}>Status</Text>
+              </View>
+              {rentPayments.map((p, idx) => (
+                <View key={idx} style={[s.tableRow, idx % 2 === 1 ? s.tableRowAlt : {}]}>
+                  <Text style={[s.tableCell, { width: 25 }]}>{idx + 1}</Text>
+                  <Text style={[s.tableCell, { width: 80 }]}>{p.month}</Text>
+                  <Text style={[s.tableCell, { width: 75 }]}>{p.paidOn}</Text>
+                  <Text style={[s.tableCellRight, { width: 80 }]}>{formatINR(p.amount)}</Text>
+                  <Text style={[s.tableCell, { flex: 1 }]}>{p.method}</Text>
+                  <Text style={[s.tableCell, { width: 50 }]}>{p.status}</Text>
+                </View>
+              ))}
+              {/* Total row */}
+              <View style={[s.tableRow, { backgroundColor: "#F3F4F6" }]}>
+                <Text style={[s.tableCell, { width: 25 }]} />
+                <Text style={[s.tableCell, { width: 80, fontFamily: "Helvetica-Bold" }]}>Total</Text>
+                <Text style={[s.tableCell, { width: 75 }]}>{rentPayments.length} payments</Text>
+                <Text style={[s.tableCellRight, { width: 80, fontFamily: "Helvetica-Bold" }]}>{formatINR(rentTotal)}</Text>
+                <Text style={[s.tableCell, { flex: 1 }]} />
+                <Text style={[s.tableCell, { width: 50 }]} />
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Deposit Calculation */}
         <View style={{ marginTop: 16 }}>

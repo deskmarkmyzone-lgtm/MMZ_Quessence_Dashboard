@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FlatAnnexurePDF } from "@/lib/pdf/flat-annexure";
 import { downloadPDF } from "@/lib/pdf/download";
-import { createDocument } from "@/lib/actions";
+import { createDocument, fetchRentPaymentsForFlat } from "@/lib/actions";
+import type { RentPaymentSummary } from "@/lib/actions";
 import { exportToExcel } from "@/lib/excel/export";
 import { SortableList } from "@/components/shared/sortable-list";
 
@@ -156,7 +157,26 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
     ifsc: "",
   });
 
+  const [rentPayments, setRentPayments] = useState<RentPaymentSummary[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+
   const selectedFlat = flats.find((f) => f.id === selectedFlatId);
+
+  // Fetch rent payments when a flat is selected
+  useEffect(() => {
+    if (!selectedFlatId) {
+      setRentPayments([]);
+      return;
+    }
+    setLoadingPayments(true);
+    fetchRentPaymentsForFlat(selectedFlatId)
+      .then((result) => {
+        if (result.success && result.data) {
+          setRentPayments(result.data);
+        }
+      })
+      .finally(() => setLoadingPayments(false));
+  }, [selectedFlatId]);
 
   const toggleRoom = (roomId: string) => {
     setRooms((prev) =>
@@ -235,6 +255,7 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
   const handleExportExcel = () => {
     if (!selectedFlat) return;
     try {
+      // Sheet 1: Room inventory
       const excelData = rooms.flatMap((room) =>
         room.items.map((item) => ({
           room_name: room.name,
@@ -257,6 +278,31 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
         filename: `flat-annexure-${selectedFlat.flat_number}`,
         sheetName: "Flat Annexure",
       });
+
+      // Sheet 2: Rent payments (separate file for move-out)
+      if (annexureType === "move_out" && rentPayments.length > 0) {
+        const rentData = rentPayments.map((p, idx) => ({
+          slNo: idx + 1,
+          month: new Date(p.payment_month).toLocaleDateString("en-IN", { month: "short", year: "numeric" }),
+          paid_on: new Date(p.payment_date).toLocaleDateString("en-IN"),
+          amount: p.amount,
+          method: p.payment_method.replace(/_/g, " "),
+          status: p.payment_status,
+        }));
+
+        exportToExcel(rentData, [
+          { key: "slNo", label: "S.No" },
+          { key: "month", label: "Month" },
+          { key: "paid_on", label: "Paid On" },
+          { key: "amount", label: "Amount (₹)" },
+          { key: "method", label: "Payment Method" },
+          { key: "status", label: "Status" },
+        ], {
+          filename: `rent-payments-${selectedFlat.flat_number}`,
+          sheetName: "Rent Payments",
+        });
+      }
+
       toast.success("Excel downloaded successfully");
     } catch {
       toast.error("Failed to export Excel");
@@ -283,6 +329,15 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
           description: d.description,
           amount: d.amount,
         }));
+      const pdfRentPayments = annexureType === "move_out" && rentPayments.length > 0
+        ? rentPayments.map((p) => ({
+            month: new Date(p.payment_month).toLocaleDateString("en-IN", { month: "short", year: "numeric" }),
+            paidOn: new Date(p.payment_date).toLocaleDateString("en-IN"),
+            amount: p.amount,
+            method: p.payment_method.replace(/_/g, " "),
+            status: p.payment_status,
+          }))
+        : undefined;
       await downloadPDF(
         FlatAnnexurePDF({
           flatNo: selectedFlat.flat_number,
@@ -294,6 +349,7 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
           deductions: pdfDeductions,
           totalDeductions,
           refundAmount,
+          rentPayments: pdfRentPayments,
           tenantBankDetails: bankDetails.account_number
             ? {
                 name: bankDetails.account_holder,
@@ -305,7 +361,25 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
         }),
         `flat-annexure-${selectedFlat.flat_number}`
       );
-      toast.success("PDF downloaded successfully");
+
+      // Auto-save document record so it appears in the documents list
+      const lineItems = rooms.map((room) => ({
+        room_name: room.name,
+        items: room.items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          condition: item.condition,
+        })),
+      }));
+      await createDocument({
+        document_type: "flat_annexure",
+        owner_id: selectedFlat.owner_id,
+        period_label: `${annexureType === "move_in" ? "Move-In" : "Move-Out"} - Flat ${selectedFlat.flat_number} - ${annexureDate}`,
+        line_items: lineItems,
+        grand_total: annexureType === "move_out" ? refundAmount : undefined,
+      }).catch(() => {}); // Non-blocking — PDF is already downloaded
+
+      toast.success("PDF downloaded and saved to documents");
     } catch {
       toast.error("Failed to generate PDF");
     } finally {
@@ -570,6 +644,63 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Rent Payment History (Move-Out only) */}
+      {selectedFlatId && annexureType === "move_out" && (
+        <div className="bg-bg-card border border-border-primary rounded-lg p-6 mb-6 space-y-4">
+          <h3 className="text-h3 text-text-primary">Rent Payment History</h3>
+          {loadingPayments ? (
+            <div className="flex items-center gap-2 text-text-secondary">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-body-sm">Loading payments...</span>
+            </div>
+          ) : rentPayments.length === 0 ? (
+            <p className="text-body-sm text-text-muted">No rent payments found for this flat.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-caption">
+                <thead>
+                  <tr className="border-b border-border-primary">
+                    <th className="text-left py-2 px-3 text-text-muted font-semibold">#</th>
+                    <th className="text-left py-2 px-3 text-text-muted font-semibold">Month</th>
+                    <th className="text-left py-2 px-3 text-text-muted font-semibold">Paid On</th>
+                    <th className="text-right py-2 px-3 text-text-muted font-semibold">Amount</th>
+                    <th className="text-left py-2 px-3 text-text-muted font-semibold">Method</th>
+                    <th className="text-left py-2 px-3 text-text-muted font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rentPayments.map((p, idx) => (
+                    <tr key={p.id} className="border-b border-border-subtle hover:bg-bg-hover">
+                      <td className="py-2 px-3 text-text-muted">{idx + 1}</td>
+                      <td className="py-2 px-3 text-text-primary">
+                        {new Date(p.payment_month).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
+                      </td>
+                      <td className="py-2 px-3 text-text-secondary">
+                        {new Date(p.payment_date).toLocaleDateString("en-IN")}
+                      </td>
+                      <td className="py-2 px-3 text-text-primary text-right font-medium">
+                        ₹{p.amount.toLocaleString("en-IN")}
+                      </td>
+                      <td className="py-2 px-3 text-text-secondary capitalize">{p.payment_method.replace(/_/g, " ")}</td>
+                      <td className="py-2 px-3 text-text-secondary capitalize">{p.payment_status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border-primary">
+                    <td colSpan={3} className="py-2 px-3 text-text-primary font-semibold">Total ({rentPayments.length} payments)</td>
+                    <td className="py-2 px-3 text-right text-accent font-bold">
+                      ₹{rentPayments.reduce((sum, p) => sum + p.amount, 0).toLocaleString("en-IN")}
+                    </td>
+                    <td colSpan={2} />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
