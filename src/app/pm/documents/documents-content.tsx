@@ -516,12 +516,12 @@ export function DocumentsContent({ documents }: DocumentsContentProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-text-muted hover:text-accent"
+                          className="h-8 w-8 text-accent/70 hover:text-accent hover:bg-accent/10"
                           aria-label="Send for approval"
                           disabled={actionLoading}
                           onClick={() => handleSubmitForApproval(doc.id)}
                         >
-                          <SendHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+                          <SendHorizontal className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       )}
                       <Button

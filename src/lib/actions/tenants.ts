@@ -308,3 +308,62 @@ export async function exitTenant(
     };
   }
 }
+
+export async function reactivateTenant(tenantId: string): Promise<ActionResult> {
+  try {
+    const supabase = createClient();
+
+    const { data: tenant, error: fetchError } = await supabase
+      .from("tenants")
+      .select("flat_id, name")
+      .eq("id", tenantId)
+      .single();
+
+    if (fetchError || !tenant) {
+      return { success: false, error: "Tenant not found" };
+    }
+
+    // Reactivate the tenant
+    const { error: tenantError } = await supabase
+      .from("tenants")
+      .update({
+        is_active: true,
+        exit_date: null,
+        exit_reason: null,
+      })
+      .eq("id", tenantId);
+
+    if (tenantError) {
+      return { success: false, error: tenantError.message };
+    }
+
+    // Set flat back to occupied
+    const { error: flatError } = await supabase
+      .from("flats")
+      .update({ status: "occupied" })
+      .eq("id", tenant.flat_id);
+
+    if (flatError) {
+      console.error("Failed to update flat status:", flatError.message);
+    }
+
+    await logAudit({
+      action: "update",
+      entity_type: "tenant",
+      entity_id: tenantId,
+      description: `Reactivated tenant "${tenant.name}" for flat ${tenant.flat_id}`,
+      changes: { is_active: true, exit_date: null, exit_reason: null },
+    });
+
+    revalidatePath("/pm/tenants");
+    revalidatePath("/pm/flats");
+    revalidatePath(`/pm/flats/${tenant.flat_id}`);
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to reactivate tenant",
+    };
+  }
+}

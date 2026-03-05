@@ -12,7 +12,7 @@ export { createOwner, updateOwner, generateOnboardingToken } from "./owners";
 
 export { createFlat, updateFlat } from "./flats";
 
-export { createTenant, updateTenant, exitTenant } from "./tenants";
+export { createTenant, updateTenant, exitTenant, reactivateTenant } from "./tenants";
 
 export { recordRentPayment, fetchRentPaymentsForFlat } from "./rent-payments";
 export type { RentPaymentSummary } from "./rent-payments";

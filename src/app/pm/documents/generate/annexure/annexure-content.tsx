@@ -12,12 +12,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Download, Save, Plus, Trash2, ChevronDown, ChevronRight, Loader2, FileSpreadsheet, Search, X, CheckCircle2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Download, Save, Plus, Trash2, ChevronDown, ChevronRight, Loader2, FileSpreadsheet, Search, X, CheckCircle2, AlertTriangle, Undo2, User, Phone, Mail, Building, Calendar, IndianRupee } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FlatAnnexurePDF } from "@/lib/pdf/flat-annexure";
 import { downloadPDF } from "@/lib/pdf/download";
-import { createDocument, fetchRentPaymentsForFlat, exitTenant } from "@/lib/actions";
+import { createDocument, fetchRentPaymentsForFlat, exitTenant, reactivateTenant } from "@/lib/actions";
 import type { RentPaymentSummary } from "@/lib/actions";
 import { exportToExcel } from "@/lib/excel/export";
 import { SortableList } from "@/components/shared/sortable-list";
@@ -122,11 +130,26 @@ interface FlatOption {
   id: string;
   flat_number: string;
   bhk_type: string;
+  carpet_area_sft: number | null;
   owner_id: string;
   owner_name: string;
   tenant_id: string;
   tenant_name: string;
+  tenant_phone: string | null;
+  tenant_email: string | null;
+  tenant_type: string | null;
+  occupation_type: string | null;
+  company_name: string | null;
+  business_name: string | null;
+  family_member_count: number | null;
+  bachelor_occupant_count: number | null;
+  bachelor_gender: string | null;
+  lease_start_date: string | null;
+  lease_end_date: string | null;
   security_deposit: number;
+  monthly_rent: number;
+  monthly_maintenance: number;
+  monthly_inclusive_rent: number;
 }
 
 interface AnnexureContentProps {
@@ -162,6 +185,8 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [exitingTenant, setExitingTenant] = useState(false);
   const [exitCompleted, setExitCompleted] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [undoing, setUndoing] = useState(false);
 
   const selectedFlat = flats.find((f) => f.id === selectedFlatId);
 
@@ -463,6 +488,7 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
   const handleCompleteExit = async () => {
     if (!selectedFlat) return;
     setExitingTenant(true);
+    setShowExitConfirm(false);
     try {
       const result = await exitTenant(selectedFlat.tenant_id, {
         exit_date: annexureDate,
@@ -478,6 +504,25 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
       toast.error("Failed to complete tenant exit");
     } finally {
       setExitingTenant(false);
+    }
+  };
+
+  const handleUndoExit = async () => {
+    if (!selectedFlat) return;
+    setUndoing(true);
+    try {
+      const result = await reactivateTenant(selectedFlat.tenant_id);
+      if (result.success) {
+        setExitCompleted(false);
+        toast.success(`Undo successful — Flat ${selectedFlat.flat_number} is occupied again`);
+        router.refresh();
+      } else {
+        toast.error(result.error ?? "Failed to undo tenant exit");
+      }
+    } catch {
+      toast.error("Failed to undo tenant exit");
+    } finally {
+      setUndoing(false);
     }
   };
 
@@ -880,6 +925,110 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
         </div>
       )}
 
+      {/* Tenant Details (Move-In only) */}
+      {selectedFlatId && annexureType === "move_in" && selectedFlat && (
+        <div className="bg-bg-card border border-border-primary rounded-lg p-6 mb-6 space-y-4">
+          <h3 className="text-h3 text-text-primary flex items-center gap-2">
+            <User className="h-5 w-5 text-accent" />
+            Tenant Details
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <p className="text-caption text-text-muted">Tenant Name</p>
+              <p className="text-body-sm text-text-primary font-medium">{selectedFlat.tenant_name}</p>
+            </div>
+            {selectedFlat.tenant_phone && (
+              <div className="space-y-1">
+                <p className="text-caption text-text-muted flex items-center gap-1"><Phone className="h-3 w-3" /> Phone</p>
+                <p className="text-body-sm text-text-primary">{selectedFlat.tenant_phone}</p>
+              </div>
+            )}
+            {selectedFlat.tenant_email && (
+              <div className="space-y-1">
+                <p className="text-caption text-text-muted flex items-center gap-1"><Mail className="h-3 w-3" /> Email</p>
+                <p className="text-body-sm text-text-primary">{selectedFlat.tenant_email}</p>
+              </div>
+            )}
+            {selectedFlat.tenant_type && (
+              <div className="space-y-1">
+                <p className="text-caption text-text-muted">Tenant Type</p>
+                <p className="text-body-sm text-text-primary capitalize">{selectedFlat.tenant_type}</p>
+              </div>
+            )}
+            {selectedFlat.occupation_type && (
+              <div className="space-y-1">
+                <p className="text-caption text-text-muted flex items-center gap-1"><Building className="h-3 w-3" /> Occupation</p>
+                <p className="text-body-sm text-text-primary capitalize">
+                  {selectedFlat.occupation_type.replace(/_/g, " ")}
+                  {selectedFlat.company_name ? ` — ${selectedFlat.company_name}` : ""}
+                  {selectedFlat.business_name ? ` — ${selectedFlat.business_name}` : ""}
+                </p>
+              </div>
+            )}
+            {selectedFlat.tenant_type === "family" && selectedFlat.family_member_count && (
+              <div className="space-y-1">
+                <p className="text-caption text-text-muted">Family Members</p>
+                <p className="text-body-sm text-text-primary">{selectedFlat.family_member_count}</p>
+              </div>
+            )}
+            {selectedFlat.tenant_type === "bachelor" && (
+              <>
+                {selectedFlat.bachelor_occupant_count && (
+                  <div className="space-y-1">
+                    <p className="text-caption text-text-muted">Occupants</p>
+                    <p className="text-body-sm text-text-primary">
+                      {selectedFlat.bachelor_occupant_count}
+                      {selectedFlat.bachelor_gender ? ` (${selectedFlat.bachelor_gender})` : ""}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+            {selectedFlat.lease_start_date && (
+              <div className="space-y-1">
+                <p className="text-caption text-text-muted flex items-center gap-1"><Calendar className="h-3 w-3" /> Lease Start</p>
+                <p className="text-body-sm text-text-primary">
+                  {new Date(selectedFlat.lease_start_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </p>
+              </div>
+            )}
+            {selectedFlat.lease_end_date && (
+              <div className="space-y-1">
+                <p className="text-caption text-text-muted flex items-center gap-1"><Calendar className="h-3 w-3" /> Lease End</p>
+                <p className="text-body-sm text-text-primary">
+                  {new Date(selectedFlat.lease_end_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </p>
+              </div>
+            )}
+            <div className="space-y-1">
+              <p className="text-caption text-text-muted flex items-center gap-1"><IndianRupee className="h-3 w-3" /> Monthly Rent</p>
+              <p className="text-body-sm text-text-primary font-medium">
+                ₹{selectedFlat.monthly_rent.toLocaleString("en-IN")}
+                {selectedFlat.monthly_maintenance > 0 && (
+                  <span className="text-text-secondary font-normal"> + ₹{selectedFlat.monthly_maintenance.toLocaleString("en-IN")} maint.</span>
+                )}
+              </p>
+            </div>
+            {selectedFlat.monthly_inclusive_rent > 0 && (
+              <div className="space-y-1">
+                <p className="text-caption text-text-muted">Inclusive Rent</p>
+                <p className="text-body-sm text-accent font-medium">₹{selectedFlat.monthly_inclusive_rent.toLocaleString("en-IN")}</p>
+              </div>
+            )}
+            <div className="space-y-1">
+              <p className="text-caption text-text-muted">Security Deposit</p>
+              <p className="text-body-sm text-text-primary font-medium">₹{selectedFlat.security_deposit.toLocaleString("en-IN")}</p>
+            </div>
+            {selectedFlat.carpet_area_sft && (
+              <div className="space-y-1">
+                <p className="text-caption text-text-muted">Carpet Area</p>
+                <p className="text-body-sm text-text-primary">{selectedFlat.carpet_area_sft} sq.ft.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Complete Exit Banner (Move-Out only) */}
       {selectedFlatId && annexureType === "move_out" && !exitCompleted && (
         <div className="bg-warning/10 border border-warning/30 rounded-lg px-4 py-3 mb-6 flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
@@ -892,7 +1041,7 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
             </p>
           </div>
           <Button
-            onClick={handleCompleteExit}
+            onClick={() => setShowExitConfirm(true)}
             disabled={exitingTenant}
             className="bg-accent hover:bg-accent-light text-white shrink-0"
           >
@@ -907,13 +1056,73 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
       )}
 
       {selectedFlatId && annexureType === "move_out" && exitCompleted && (
-        <div className="bg-success/10 border border-success/30 rounded-lg px-4 py-3 mb-6 flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-          <p className="text-body-sm text-success font-medium">
-            Tenant exit completed — Flat {selectedFlat?.flat_number} is now vacant
-          </p>
+        <div className="bg-success/10 border border-success/30 rounded-lg px-4 py-3 mb-6 flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+            <p className="text-body-sm text-success font-medium">
+              Tenant exit completed — Flat {selectedFlat?.flat_number} is now vacant
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleUndoExit}
+            disabled={undoing}
+            className="border-warning text-warning hover:bg-warning/10 shrink-0"
+          >
+            {undoing ? (
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+            ) : (
+              <Undo2 className="h-4 w-4 mr-1.5" />
+            )}
+            {undoing ? "Undoing..." : "Undo Exit"}
+          </Button>
         </div>
       )}
+
+      {/* Exit Confirmation Dialog */}
+      <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-warning">
+              <AlertTriangle className="h-5 w-5" />
+              Confirm Tenant Exit
+            </DialogTitle>
+            <DialogDescription>
+              Please verify you have selected the correct flat before proceeding.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <div className="bg-bg-elevated rounded-lg p-4 space-y-2">
+              <div className="flex justify-between text-body-sm">
+                <span className="text-text-secondary">Flat</span>
+                <span className="text-text-primary font-mono font-bold">{selectedFlat?.flat_number}</span>
+              </div>
+              <div className="flex justify-between text-body-sm">
+                <span className="text-text-secondary">Tenant</span>
+                <span className="text-text-primary font-medium">{selectedFlat?.tenant_name}</span>
+              </div>
+              <div className="flex justify-between text-body-sm">
+                <span className="text-text-secondary">Exit Date</span>
+                <span className="text-text-primary">{new Date(annexureDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+              </div>
+              <div className="flex justify-between text-body-sm">
+                <span className="text-text-secondary">Owner</span>
+                <span className="text-text-primary">{selectedFlat?.owner_name}</span>
+              </div>
+            </div>
+            <p className="text-caption text-text-secondary">
+              This will deactivate the tenant and mark the flat as vacant. The owner will be notified. You can undo this action afterwards if needed.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExitConfirm(false)}>Cancel</Button>
+            <Button onClick={handleCompleteExit} disabled={exitingTenant} className="bg-accent hover:bg-accent-light text-white">
+              {exitingTenant ? "Processing..." : "Confirm Exit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Actions */}
       {selectedFlatId && (
