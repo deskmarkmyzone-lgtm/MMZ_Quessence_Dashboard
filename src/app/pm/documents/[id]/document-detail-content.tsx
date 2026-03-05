@@ -50,6 +50,7 @@ import {
   publishDocument,
   recordDocumentPayment,
   reactivateTenant,
+  exitTenant,
 } from "@/lib/actions";
 import { exportToExcel } from "@/lib/excel/export";
 import type { DocumentType, DocumentStatus } from "@/types";
@@ -133,6 +134,10 @@ interface DocumentDetailProps {
   moveOutFlatNumber?: string | null;
   /** Whether the current user can undo exits (admin/super_admin) */
   canUndoExit?: boolean;
+  /** For flat_annexure move-out docs: active tenant ID to mark vacant */
+  activeTenantId?: string | null;
+  /** Whether the flat is still occupied (exit not done yet) */
+  flatStillOccupied?: boolean;
 }
 
 // ===== Helpers =====
@@ -144,10 +149,11 @@ function formatCurrency(value: number | null): string {
 
 // ===== Component =====
 
-export function DocumentDetailContent({ document: doc, bankDetails, auditHistory, moveOutTenantId, moveOutFlatNumber, canUndoExit }: DocumentDetailProps) {
+export function DocumentDetailContent({ document: doc, bankDetails, auditHistory, moveOutTenantId, moveOutFlatNumber, canUndoExit, activeTenantId, flatStillOccupied }: DocumentDetailProps) {
   const router = useRouter();
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [exitUndone, setExitUndone] = useState(false);
+  const [exitJustCompleted, setExitJustCompleted] = useState(false);
 
   const handleSubmitForApproval = async () => {
     setLoadingAction("submit");
@@ -227,6 +233,7 @@ export function DocumentDetailContent({ document: doc, bankDetails, auditHistory
       const result = await reactivateTenant(moveOutTenantId);
       if (result.success) {
         setExitUndone(true);
+        setExitJustCompleted(false);
         toast.success(`Undo successful — Flat ${moveOutFlatNumber} is occupied again`);
         router.refresh();
       } else {
@@ -234,6 +241,28 @@ export function DocumentDetailContent({ document: doc, bankDetails, auditHistory
       }
     } catch {
       toast.error("Failed to undo tenant exit");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleMarkVacant = async () => {
+    if (!activeTenantId) return;
+    setLoadingAction("markVacant");
+    try {
+      const result = await exitTenant(activeTenantId, {
+        exit_date: new Date().toISOString().split("T")[0],
+        exit_reason: "Move-out annexure — marked vacant from document page",
+      });
+      if (result.success) {
+        setExitJustCompleted(true);
+        toast.success(`Flat ${moveOutFlatNumber} is now vacant`);
+        router.refresh();
+      } else {
+        toast.error(result.error ?? "Failed to mark flat as vacant");
+      }
+    } catch {
+      toast.error("Failed to mark flat as vacant");
     } finally {
       setLoadingAction(null);
     }
@@ -455,44 +484,106 @@ export function DocumentDetailContent({ document: doc, bankDetails, auditHistory
         </div>
       )}
 
-      {/* Undo Exit Banner — for flat_annexure move-out documents */}
-      {doc.document_type === "flat_annexure" && doc.period_label?.startsWith("Move-Out") && moveOutTenantId && !exitUndone && (
-        <div className="mb-6 bg-warning/10 border border-warning/30 rounded-lg px-4 py-3 flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
-          <div>
-            <p className="text-body-sm text-text-primary font-medium">
-              Tenant exit was completed for Flat {moveOutFlatNumber}
-            </p>
-            <p className="text-caption text-text-secondary">
-              {canUndoExit
-                ? "If this was done by mistake, you can undo the exit to reactivate the tenant."
-                : "Contact an admin to undo this exit if needed."}
-            </p>
-          </div>
-          {canUndoExit && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleUndoExit}
-              disabled={isLoading}
-              className="border-warning text-warning hover:bg-warning/10 shrink-0"
-            >
-              {loadingAction === "undo" ? (
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-              ) : (
-                <Undo2 className="h-4 w-4 mr-1.5" />
-              )}
-              {loadingAction === "undo" ? "Undoing..." : "Undo Exit"}
-            </Button>
+      {/* Move-Out Annexure: Mark Vacant / Undo Exit banners */}
+      {doc.document_type === "flat_annexure" && doc.period_label?.startsWith("Move-Out") && moveOutFlatNumber && (
+        <>
+          {/* Mark Vacant — flat is still occupied */}
+          {(flatStillOccupied && activeTenantId && !exitJustCompleted && !exitUndone) && (
+            <div className="mb-6 bg-info/10 border border-info/30 rounded-lg px-4 py-3 flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+              <div>
+                <p className="text-body-sm text-text-primary font-medium">
+                  Flat {moveOutFlatNumber} is still occupied
+                </p>
+                <p className="text-caption text-text-secondary">
+                  Mark the flat as vacant when ready. This will exit the tenant and update the flat status.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleMarkVacant}
+                disabled={isLoading}
+                className="bg-accent hover:bg-accent/90 text-white shrink-0"
+              >
+                {loadingAction === "markVacant" ? (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                )}
+                {loadingAction === "markVacant" ? "Processing..." : "Mark Vacant"}
+              </Button>
+            </div>
           )}
-        </div>
-      )}
-      {exitUndone && (
-        <div className="mb-6 bg-success/10 border border-success/30 rounded-lg px-4 py-3 flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-          <p className="text-body-sm text-success font-medium">
-            Tenant exit undone — Flat {moveOutFlatNumber} is occupied again
-          </p>
-        </div>
+
+          {/* Undo Exit — flat is vacant (or just marked vacant) */}
+          {((moveOutTenantId && !exitUndone) || exitJustCompleted) && !flatStillOccupied && !exitUndone && (
+            <div className="mb-6 bg-warning/10 border border-warning/30 rounded-lg px-4 py-3 flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+              <div>
+                <p className="text-body-sm text-text-primary font-medium">
+                  Tenant exit completed — Flat {moveOutFlatNumber} is vacant
+                </p>
+                <p className="text-caption text-text-secondary">
+                  {canUndoExit
+                    ? "If this was done by mistake, you can undo the exit to reactivate the tenant."
+                    : "Contact an admin to undo this exit if needed."}
+                </p>
+              </div>
+              {canUndoExit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUndoExit}
+                  disabled={isLoading}
+                  className="border-warning text-warning hover:bg-warning/10 shrink-0"
+                >
+                  {loadingAction === "undo" ? (
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Undo2 className="h-4 w-4 mr-1.5" />
+                  )}
+                  {loadingAction === "undo" ? "Undoing..." : "Undo Exit"}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Just completed exit */}
+          {exitJustCompleted && (
+            <div className="mb-6 bg-success/10 border border-success/30 rounded-lg px-4 py-3 flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+                <p className="text-body-sm text-success font-medium">
+                  Flat {moveOutFlatNumber} is now vacant
+                </p>
+              </div>
+              {canUndoExit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUndoExit}
+                  disabled={isLoading}
+                  className="border-warning text-warning hover:bg-warning/10 shrink-0"
+                >
+                  {loadingAction === "undo" ? (
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Undo2 className="h-4 w-4 mr-1.5" />
+                  )}
+                  Undo Exit
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Undo success */}
+          {exitUndone && (
+            <div className="mb-6 bg-success/10 border border-success/30 rounded-lg px-4 py-3 flex items-center gap-3">
+              <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+              <p className="text-body-sm text-success font-medium">
+                Tenant exit undone — Flat {moveOutFlatNumber} is occupied again
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

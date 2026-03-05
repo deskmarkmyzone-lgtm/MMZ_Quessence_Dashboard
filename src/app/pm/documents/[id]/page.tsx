@@ -121,17 +121,18 @@ async function DocumentDetail({ id }: { id: string }) {
     created_at: formatDate(entry.created_at) ?? entry.created_at,
   }));
 
-  // For flat_annexure move-out documents, find the tenant to enable undo
+  // For flat_annexure move-out documents, find the tenant to enable undo / mark vacant
   let moveOutTenantId: string | null = null;
   let moveOutFlatNumber: string | null = null;
   let userCanUndoExit = false;
+  let activeTenantId: string | null = null;
+  let flatStillOccupied = false;
 
   if (doc.document_type === "flat_annexure" && doc.period_label?.startsWith("Move-Out")) {
     // Parse flat number from period_label: "Move-Out - Flat 3245 - 2026-03-06"
     const flatMatch = doc.period_label.match(/Flat\s+(\S+)/);
     if (flatMatch) {
       moveOutFlatNumber = flatMatch[1];
-      // Find the flat, then the last exited tenant
       const { data: flat } = await supabase
         .from("flats")
         .select("id, status")
@@ -139,18 +140,34 @@ async function DocumentDetail({ id }: { id: string }) {
         .eq("flat_number", moveOutFlatNumber)
         .maybeSingle();
 
-      if (flat && flat.status === "vacant") {
-        const { data: exitedTenant } = await supabase
-          .from("tenants")
-          .select("id")
-          .eq("flat_id", flat.id)
-          .eq("is_active", false)
-          .order("exit_date", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+      if (flat) {
+        if (flat.status === "vacant") {
+          // Flat already vacated — find last exited tenant for undo
+          const { data: exitedTenant } = await supabase
+            .from("tenants")
+            .select("id")
+            .eq("flat_id", flat.id)
+            .eq("is_active", false)
+            .order("exit_date", { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-        if (exitedTenant) {
-          moveOutTenantId = exitedTenant.id;
+          if (exitedTenant) {
+            moveOutTenantId = exitedTenant.id;
+          }
+        } else if (flat.status === "occupied") {
+          // Flat still occupied — provide "Mark Vacant" option
+          flatStillOccupied = true;
+          const { data: activeTenant } = await supabase
+            .from("tenants")
+            .select("id")
+            .eq("flat_id", flat.id)
+            .eq("is_active", true)
+            .maybeSingle();
+
+          if (activeTenant) {
+            activeTenantId = activeTenant.id;
+          }
         }
       }
     }
@@ -168,6 +185,8 @@ async function DocumentDetail({ id }: { id: string }) {
       moveOutTenantId={moveOutTenantId}
       moveOutFlatNumber={moveOutFlatNumber}
       canUndoExit={userCanUndoExit}
+      activeTenantId={activeTenantId}
+      flatStillOccupied={flatStillOccupied}
     />
   );
 }

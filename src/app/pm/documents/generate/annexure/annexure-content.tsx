@@ -188,7 +188,11 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [undoing, setUndoing] = useState(false);
 
-  const selectedFlat = flats.find((f) => f.id === selectedFlatId);
+  // Store selected flat in state so it persists after revalidation
+  // (after exit, the flat becomes vacant and drops from the flats prop)
+  const [cachedFlat, setCachedFlat] = useState<FlatOption | null>(null);
+  const liveLookup = flats.find((f) => f.id === selectedFlatId);
+  const selectedFlat = liveLookup ?? cachedFlat;
 
   // Fetch rent payments when a flat is selected
   useEffect(() => {
@@ -612,6 +616,7 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
                           type="button"
                           onClick={() => {
                             setSelectedFlatId(flat.id);
+                            setCachedFlat(flat);
                             setFlatSearch("");
                             setShowFlatDropdown(false);
                             setBankDetails((prev) => ({
@@ -647,14 +652,14 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
                     Flat {flats.find((f) => f.id === selectedFlatId)?.flat_number}
                   </span>
                   <span className="text-body-sm text-text-secondary ml-2">
-                    · {flats.find((f) => f.id === selectedFlatId)?.tenant_name}
+                    · {selectedFlat?.tenant_name}
                   </span>
                 </div>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={() => setSelectedFlatId("")}
+                  onClick={() => { setSelectedFlatId(""); setCachedFlat(null); setExitCompleted(false); }}
                   className="text-text-muted h-8 w-8"
                   aria-label="Clear flat selection"
                 >

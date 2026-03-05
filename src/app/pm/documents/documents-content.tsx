@@ -24,7 +24,6 @@ import {
 import {
   Search,
   Download,
-  Eye,
   SlidersHorizontal,
   X,
   Copy,
@@ -33,8 +32,9 @@ import {
   AlertTriangle,
   GitCompare,
   SendHorizontal,
+  CheckSquare,
 } from "lucide-react";
-import Link from "next/link";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ExportButtons } from "@/components/shared/export-buttons";
 import { exportToExcel } from "@/lib/excel/export";
 import { deleteDocument, renameDocument, submitForApproval } from "@/lib/actions";
@@ -121,10 +121,15 @@ export function DocumentsContent({ documents }: DocumentsContentProps) {
   const [paymentFilter, setPaymentFilter] = useState(searchParams.get("payment") || "all");
   const [showFilters, setShowFilters] = useState(false);
 
+  // Multi-select
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const isMultiSelectMode = selectedIds.size > 0;
+
   // Dialogs
   const [renameDoc, setRenameDoc] = useState<DocumentRow | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteDoc, setDeleteDoc] = useState<DocumentRow | null>(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [compareDocs, setCompareDocs] = useState<[DocumentRow, DocumentRow] | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -263,6 +268,59 @@ export function DocumentsContent({ documents }: DocumentsContentProps) {
     const key = getDuplicateKey(doc);
     return (duplicateMap.get(key) ?? []).filter((d) => d.id !== doc.id);
   };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredDocs.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredDocs.map((d) => d.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setActionLoading(true);
+    let deleted = 0;
+    for (const id of Array.from(selectedIds)) {
+      const doc = documents.find((d) => d.id === id);
+      if (doc && doc.status === "published") continue; // skip published
+      const result = await deleteDocument(id);
+      if (result.success) deleted++;
+    }
+    setActionLoading(false);
+    setBulkDeleteConfirm(false);
+    setSelectedIds(new Set());
+    toast.success(`${deleted} document${deleted !== 1 ? "s" : ""} deleted`);
+    router.refresh();
+  };
+
+  const handleRowClick = (docId: string, e: React.MouseEvent) => {
+    // Don't navigate if clicking on action buttons, checkboxes, or links
+    const target = e.target as HTMLElement;
+    if (
+      target.closest("button") ||
+      target.closest("a") ||
+      target.closest("[role='checkbox']") ||
+      target.closest("label")
+    ) return;
+
+    if (isMultiSelectMode) {
+      toggleSelect(docId);
+    } else {
+      router.push(`/pm/documents/${docId}`);
+    }
+  };
+
+  const selectedDocs = filteredDocs.filter((d) => selectedIds.has(d.id));
+  const canBulkDelete = selectedDocs.some((d) => d.status !== "published");
 
   return (
     <div className="w-full">
@@ -422,11 +480,63 @@ export function DocumentsContent({ documents }: DocumentsContentProps) {
         </p>
       )}
 
+      {/* Bulk Actions Bar */}
+      {isMultiSelectMode && (
+        <div className="bg-accent/10 border border-accent/30 rounded-lg px-4 py-3 mb-4 flex items-center gap-3 flex-wrap">
+          <CheckSquare className="h-4 w-4 text-accent shrink-0" />
+          <span className="text-body-sm text-text-primary font-medium">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex items-center gap-2 ml-auto">
+            {selectedIds.size === 1 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-8"
+                onClick={() => {
+                  const doc = documents.find((d) => d.id === Array.from(selectedIds)[0]);
+                  if (doc) { setRenameDoc(doc); setRenameValue(doc.period_label); }
+                }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Rename
+              </Button>
+            )}
+            {canBulkDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-8 text-danger border-danger/30 hover:bg-danger/10"
+                onClick={() => setBulkDeleteConfirm(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Documents Table */}
       <div className="bg-bg-card border border-border-primary rounded-lg overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border-primary">
+              <th className="text-center text-caption text-text-muted font-medium px-3 py-3 w-10">
+                <Checkbox
+                  checked={filteredDocs.length > 0 && selectedIds.size === filteredDocs.length}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all"
+                />
+              </th>
               <th className="text-left text-caption text-text-muted font-medium px-4 py-3">Document #</th>
               <th className="text-left text-caption text-text-muted font-medium px-4 py-3">Type</th>
               <th className="text-left text-caption text-text-muted font-medium px-4 py-3">Owner</th>
@@ -445,10 +555,18 @@ export function DocumentsContent({ documents }: DocumentsContentProps) {
               return (
                 <tr
                   key={doc.id}
-                  className={`border-b border-border-primary last:border-0 hover:bg-bg-hover transition-colors ${
+                  className={`border-b border-border-primary last:border-0 hover:bg-bg-hover transition-colors cursor-pointer ${
                     isDuplicate ? "bg-warning/5" : ""
-                  }`}
+                  } ${selectedIds.has(doc.id) ? "bg-accent/5" : ""}`}
+                  onClick={(e) => handleRowClick(doc.id, e)}
                 >
+                  <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(doc.id)}
+                      onCheckedChange={() => toggleSelect(doc.id)}
+                      aria-label={`Select ${doc.document_number}`}
+                    />
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       {isDuplicate && (
@@ -496,11 +614,6 @@ export function DocumentsContent({ documents }: DocumentsContentProps) {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-0.5">
-                      <Link href={`/pm/documents/${doc.id}`} aria-label="View document">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-text-muted hover:text-text-primary">
-                          <Eye className="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                      </Link>
                       {isDuplicate && dupePartners.length > 0 && (
                         <Button
                           variant="ghost"
@@ -624,6 +737,40 @@ export function DocumentsContent({ documents }: DocumentsContentProps) {
             <Button variant="outline" onClick={() => setDeleteDoc(null)} disabled={actionLoading}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={actionLoading}>
               {actionLoading ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={bulkDeleteConfirm} onOpenChange={(open) => !open && setBulkDeleteConfirm(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-danger">
+              <Trash2 className="h-5 w-5" />
+              Delete {selectedIds.size} Document{selectedIds.size > 1 ? "s" : ""}
+            </DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. Published documents will be skipped.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="bg-bg-elevated rounded-lg p-3 text-caption text-text-secondary space-y-1 max-h-40 overflow-y-auto">
+              {selectedDocs.map((doc) => (
+                <p key={doc.id} className="flex items-center gap-2">
+                  <span className="font-mono font-semibold text-text-primary">{doc.document_number}</span>
+                  <span>&mdash; {doc.owner_name}</span>
+                  {doc.status === "published" && (
+                    <span className="text-warning text-[10px] font-medium">(skipped)</span>
+                  )}
+                </p>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDeleteConfirm(false)} disabled={actionLoading}>Cancel</Button>
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={actionLoading}>
+              {actionLoading ? "Deleting..." : `Delete ${selectedDocs.filter((d) => d.status !== "published").length} Documents`}
             </Button>
           </DialogFooter>
         </DialogContent>
