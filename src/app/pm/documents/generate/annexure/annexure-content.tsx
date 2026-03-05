@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Download, Save, Plus, Trash2, ChevronDown, ChevronRight, Loader2, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, Download, Save, Plus, Trash2, ChevronDown, ChevronRight, Loader2, FileSpreadsheet, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FlatAnnexurePDF } from "@/lib/pdf/flat-annexure";
@@ -134,6 +134,8 @@ interface AnnexureContentProps {
 export function AnnexureContent({ flats }: AnnexureContentProps) {
   const router = useRouter();
   const [selectedFlatId, setSelectedFlatId] = useState("");
+  const [flatSearch, setFlatSearch] = useState("");
+  const [showFlatDropdown, setShowFlatDropdown] = useState(false);
   const [annexureType, setAnnexureType] = useState<"move_in" | "move_out">("move_out");
   const [annexureDate, setAnnexureDate] = useState(new Date().toISOString().split("T")[0]);
   const [rooms, setRooms] = useState<AnnexureRoom[]>(getDefaultRooms);
@@ -371,30 +373,84 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label className="text-text-secondary">Flat</Label>
-            <Select
-              value={selectedFlatId}
-              onValueChange={(v) => {
-                setSelectedFlatId(v);
-                const flat = flats.find((f) => f.id === v);
-                if (flat) {
-                  setBankDetails((prev) => ({
-                    ...prev,
-                    account_holder: flat.tenant_name,
-                  }));
-                }
-              }}
-            >
-              <SelectTrigger className="bg-bg-page border-border-primary">
-                <SelectValue placeholder="Select flat..." />
-              </SelectTrigger>
-              <SelectContent>
-                {flats.map((flat) => (
-                  <SelectItem key={flat.id} value={flat.id}>
-                    Flat {flat.flat_number} · {flat.tenant_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {!selectedFlatId ? (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+                <Input
+                  value={flatSearch}
+                  onChange={(e) => {
+                    setFlatSearch(e.target.value);
+                    setShowFlatDropdown(true);
+                  }}
+                  onFocus={() => setShowFlatDropdown(true)}
+                  placeholder="Search flat number or tenant..."
+                  className="pl-9 bg-bg-page border-border-primary"
+                />
+                {showFlatDropdown && (
+                  <div className="absolute z-10 top-full mt-1 w-full bg-bg-card border border-border-primary rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {flats
+                      .filter(
+                        (f) =>
+                          !flatSearch ||
+                          f.flat_number.toLowerCase().includes(flatSearch.toLowerCase()) ||
+                          f.tenant_name.toLowerCase().includes(flatSearch.toLowerCase())
+                      )
+                      .map((flat) => (
+                        <button
+                          key={flat.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedFlatId(flat.id);
+                            setFlatSearch("");
+                            setShowFlatDropdown(false);
+                            setBankDetails((prev) => ({
+                              ...prev,
+                              account_holder: flat.tenant_name,
+                            }));
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-bg-hover transition-colors border-b border-border-primary last:border-0"
+                        >
+                          <span className="text-body-sm text-text-primary font-mono font-semibold">
+                            Flat {flat.flat_number}
+                          </span>
+                          <span className="text-body-sm text-text-secondary ml-2">
+                            · {flat.tenant_name}
+                          </span>
+                        </button>
+                      ))}
+                    {flats.filter(
+                      (f) =>
+                        !flatSearch ||
+                        f.flat_number.toLowerCase().includes(flatSearch.toLowerCase()) ||
+                        f.tenant_name.toLowerCase().includes(flatSearch.toLowerCase())
+                    ).length === 0 && (
+                      <p className="px-4 py-3 text-body-sm text-text-muted">No flats found</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-between p-3 bg-bg-elevated rounded-lg">
+                <div>
+                  <span className="text-body-sm text-text-primary font-mono font-bold">
+                    Flat {flats.find((f) => f.id === selectedFlatId)?.flat_number}
+                  </span>
+                  <span className="text-body-sm text-text-secondary ml-2">
+                    · {flats.find((f) => f.id === selectedFlatId)?.tenant_name}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedFlatId("")}
+                  className="text-text-muted h-8 w-8"
+                  aria-label="Clear flat selection"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
           <div className="space-y-2">
             <Label className="text-text-secondary">Type</Label>
