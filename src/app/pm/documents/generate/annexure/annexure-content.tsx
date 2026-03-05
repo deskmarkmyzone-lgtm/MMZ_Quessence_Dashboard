@@ -12,12 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Download, Save, Plus, Trash2, ChevronDown, ChevronRight, Loader2, FileSpreadsheet, Search, X } from "lucide-react";
+import { ArrowLeft, Download, Save, Plus, Trash2, ChevronDown, ChevronRight, Loader2, FileSpreadsheet, Search, X, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FlatAnnexurePDF } from "@/lib/pdf/flat-annexure";
 import { downloadPDF } from "@/lib/pdf/download";
-import { createDocument, fetchRentPaymentsForFlat } from "@/lib/actions";
+import { createDocument, fetchRentPaymentsForFlat, exitTenant } from "@/lib/actions";
 import type { RentPaymentSummary } from "@/lib/actions";
 import { exportToExcel } from "@/lib/excel/export";
 import { SortableList } from "@/components/shared/sortable-list";
@@ -124,6 +124,7 @@ interface FlatOption {
   bhk_type: string;
   owner_id: string;
   owner_name: string;
+  tenant_id: string;
   tenant_name: string;
   security_deposit: number;
 }
@@ -159,6 +160,8 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
 
   const [rentPayments, setRentPayments] = useState<RentPaymentSummary[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
+  const [exitingTenant, setExitingTenant] = useState(false);
+  const [exitCompleted, setExitCompleted] = useState(false);
 
   const selectedFlat = flats.find((f) => f.id === selectedFlatId);
 
@@ -454,6 +457,27 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
       toast.error("Something went wrong");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCompleteExit = async () => {
+    if (!selectedFlat) return;
+    setExitingTenant(true);
+    try {
+      const result = await exitTenant(selectedFlat.tenant_id, {
+        exit_date: annexureDate,
+        exit_reason: "Move-out annexure generated",
+      });
+      if (result.success) {
+        setExitCompleted(true);
+        toast.success(`Tenant exit completed — Flat ${selectedFlat.flat_number} is now vacant`);
+      } else {
+        toast.error(result.error ?? "Failed to complete tenant exit");
+      }
+    } catch {
+      toast.error("Failed to complete tenant exit");
+    } finally {
+      setExitingTenant(false);
     }
   };
 
@@ -853,6 +877,41 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Complete Exit Banner (Move-Out only) */}
+      {selectedFlatId && annexureType === "move_out" && !exitCompleted && (
+        <div className="bg-warning/10 border border-warning/30 rounded-lg px-4 py-3 mb-6 flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+          <div>
+            <p className="text-body-sm text-text-primary font-medium">
+              Mark flat as vacant?
+            </p>
+            <p className="text-caption text-text-secondary">
+              This will exit the tenant, mark Flat {selectedFlat?.flat_number} as vacant, and notify the owner.
+            </p>
+          </div>
+          <Button
+            onClick={handleCompleteExit}
+            disabled={exitingTenant}
+            className="bg-accent hover:bg-accent-light text-white shrink-0"
+          >
+            {exitingTenant ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+            )}
+            {exitingTenant ? "Processing..." : "Complete Exit & Mark Vacant"}
+          </Button>
+        </div>
+      )}
+
+      {selectedFlatId && annexureType === "move_out" && exitCompleted && (
+        <div className="bg-success/10 border border-success/30 rounded-lg px-4 py-3 mb-6 flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+          <p className="text-body-sm text-success font-medium">
+            Tenant exit completed — Flat {selectedFlat?.flat_number} is now vacant
+          </p>
         </div>
       )}
 

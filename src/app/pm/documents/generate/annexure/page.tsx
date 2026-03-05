@@ -9,7 +9,7 @@ export default async function FlatAnnexureGenerator() {
   const { data: flatsData } = await supabase
     .from("flats")
     .select(
-      "id, flat_number, bhk_type, owner_id, owner:owners(name), tenants(name, is_active, security_deposit)"
+      "id, flat_number, bhk_type, owner_id, owner:owners(name), tenants(id, name, is_active, security_deposit)"
     )
     .eq("is_active", true)
     .eq("status", "occupied");
@@ -26,6 +26,7 @@ export default async function FlatAnnexureGenerator() {
         bhk_type: f.bhk_type ?? "-",
         owner_id: f.owner_id,
         owner_name: f.owner?.name ?? "-",
+        tenant_id: activeTenant.id,
         tenant_name: activeTenant.name,
         security_deposit: activeTenant.security_deposit ?? 0,
       };
@@ -36,6 +37,7 @@ export default async function FlatAnnexureGenerator() {
     bhk_type: string;
     owner_id: string;
     owner_name: string;
+    tenant_id: string;
     tenant_name: string;
     security_deposit: number;
   }[];
