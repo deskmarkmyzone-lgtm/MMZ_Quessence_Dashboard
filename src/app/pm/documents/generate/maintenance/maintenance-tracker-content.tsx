@@ -166,7 +166,7 @@ export function MaintenanceTrackerContent({
         sheetName: "Maintenance Tracker",
       });
       // Auto-save document record
-      await createDocument({
+      const excelSaveResult = await createDocument({
         document_type: "maintenance_tracker",
         owner_id: selectedOwner.id,
         period_label: selectedQuarters.sort().join(", "),
@@ -179,9 +179,14 @@ export function MaintenanceTrackerContent({
           totalAmount: row.total,
         })),
         grand_total: grandTotal,
-      }).catch(() => {});
+      });
 
-      toast.success("Excel downloaded and saved to documents");
+      if (excelSaveResult.success) {
+        toast.success("Excel downloaded and saved to documents");
+      } else {
+        toast.success("Excel downloaded");
+        toast.error(`Failed to save to documents: ${excelSaveResult.error}`);
+      }
     } catch {
       toast.error("Failed to export Excel");
     }
@@ -212,7 +217,7 @@ export function MaintenanceTrackerContent({
         `maintenance-tracker-${selectedOwner.name.replace(/\s+/g, "-").toLowerCase()}`
       );
       // Auto-save document record
-      await createDocument({
+      const pdfSaveResult = await createDocument({
         document_type: "maintenance_tracker",
         owner_id: selectedOwner.id,
         period_label: selectedQuarters.sort().join(", "),
@@ -225,9 +230,14 @@ export function MaintenanceTrackerContent({
           totalAmount: row.total,
         })),
         grand_total: grandTotal,
-      }).catch(() => {});
+      });
 
-      toast.success("PDF downloaded and saved to documents");
+      if (pdfSaveResult.success) {
+        toast.success("PDF downloaded and saved to documents");
+      } else {
+        toast.success("PDF downloaded");
+        toast.error(`Failed to save to documents: ${pdfSaveResult.error}`);
+      }
     } catch {
       toast.error("Failed to generate PDF");
     } finally {

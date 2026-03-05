@@ -28,6 +28,8 @@ export {
   rejectDocument,
   publishDocument,
   recordDocumentPayment,
+  deleteDocument,
+  renameDocument,
 } from "./documents";
 
 export {

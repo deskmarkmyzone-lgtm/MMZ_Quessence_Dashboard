@@ -173,7 +173,14 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
       .then((result) => {
         if (result.success && result.data) {
           setRentPayments(result.data);
+        } else if (!result.success) {
+          console.error("Failed to fetch rent payments:", result.error);
+          toast.error(result.error ?? "Failed to load rent payments");
         }
+      })
+      .catch((err) => {
+        console.error("Rent payments fetch error:", err);
+        toast.error("Failed to load rent payments");
       })
       .finally(() => setLoadingPayments(false));
   }, [selectedFlatId]);
@@ -312,15 +319,21 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
           condition: item.condition,
         })),
       }));
-      await createDocument({
+      const saveResult = await createDocument({
         document_type: "flat_annexure",
         owner_id: selectedFlat.owner_id,
         period_label: `${annexureType === "move_in" ? "Move-In" : "Move-Out"} - Flat ${selectedFlat.flat_number} - ${annexureDate}`,
         line_items: lineItems,
         grand_total: annexureType === "move_out" ? refundAmount : undefined,
-      }).catch(() => {}); // Non-blocking
+      });
 
-      toast.success("Excel downloaded and saved to documents");
+      if (saveResult.success) {
+        toast.success("Excel downloaded and saved to documents");
+      } else {
+        console.error("Auto-save failed:", saveResult.error);
+        toast.success("Excel downloaded");
+        toast.error(`Failed to save to documents: ${saveResult.error}`);
+      }
     } catch {
       toast.error("Failed to export Excel");
     }
@@ -388,15 +401,21 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
           condition: item.condition,
         })),
       }));
-      await createDocument({
+      const saveResult = await createDocument({
         document_type: "flat_annexure",
         owner_id: selectedFlat.owner_id,
         period_label: `${annexureType === "move_in" ? "Move-In" : "Move-Out"} - Flat ${selectedFlat.flat_number} - ${annexureDate}`,
         line_items: lineItems,
         grand_total: annexureType === "move_out" ? refundAmount : undefined,
-      }).catch(() => {}); // Non-blocking — PDF is already downloaded
+      });
 
-      toast.success("PDF downloaded and saved to documents");
+      if (saveResult.success) {
+        toast.success("PDF downloaded and saved to documents");
+      } else {
+        console.error("Auto-save failed:", saveResult.error);
+        toast.success("PDF downloaded");
+        toast.error(`Failed to save to documents: ${saveResult.error}`);
+      }
     } catch {
       toast.error("Failed to generate PDF");
     } finally {

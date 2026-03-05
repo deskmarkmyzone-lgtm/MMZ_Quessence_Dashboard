@@ -15,11 +15,13 @@ export default async function DocumentsPage() {
     id: d.id,
     document_type: d.document_type,
     document_number: d.document_number ?? "-",
+    owner_id: d.owner_id,
     owner_name: d.owner?.name ?? "-",
     period_label: d.period_label ?? "-",
     grand_total: d.grand_total,
     status: d.status,
     payment_received: d.payment_received ?? false,
+    line_items: d.line_items ?? [],
     created_at: d.created_at
       ? new Date(d.created_at).toLocaleDateString("en-IN", {
           day: "numeric",
@@ -27,6 +29,7 @@ export default async function DocumentsPage() {
           year: "numeric",
         })
       : "-",
+    created_at_raw: d.created_at ?? "",
     published_at: d.published_at
       ? new Date(d.published_at).toLocaleDateString("en-IN", {
           day: "numeric",

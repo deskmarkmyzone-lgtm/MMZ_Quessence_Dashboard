@@ -122,7 +122,7 @@ export function RentalCreditContent({
         sheetName: "Rental Credit Report",
       });
       // Auto-save document record
-      await createDocument({
+      const excelSaveResult = await createDocument({
         document_type: "rental_credit_report",
         owner_id: selectedFlat.owner_id,
         period_label: `Flat ${selectedFlat.flat_number} - ${selectedFlat.lease_start} to ${selectedFlat.lease_end}`,
@@ -133,9 +133,14 @@ export function RentalCreditContent({
           inclusive_rent: p.amount,
         })),
         grand_total: totalRentCollected,
-      }).catch(() => {});
+      });
 
-      toast.success("Excel downloaded and saved to documents");
+      if (excelSaveResult.success) {
+        toast.success("Excel downloaded and saved to documents");
+      } else {
+        toast.success("Excel downloaded");
+        toast.error(`Failed to save to documents: ${excelSaveResult.error}`);
+      }
     } catch {
       toast.error("Failed to export Excel");
     }
@@ -172,7 +177,7 @@ export function RentalCreditContent({
         `rental-credit-flat-${selectedFlat.flat_number}`
       );
       // Auto-save document record
-      await createDocument({
+      const pdfSaveResult = await createDocument({
         document_type: "rental_credit_report",
         owner_id: selectedFlat.owner_id,
         period_label: `Flat ${selectedFlat.flat_number} - ${selectedFlat.lease_start} to ${selectedFlat.lease_end}`,
@@ -183,9 +188,14 @@ export function RentalCreditContent({
           inclusive_rent: p.amount,
         })),
         grand_total: totalRentCollected,
-      }).catch(() => {});
+      });
 
-      toast.success("PDF downloaded and saved to documents");
+      if (pdfSaveResult.success) {
+        toast.success("PDF downloaded and saved to documents");
+      } else {
+        toast.success("PDF downloaded");
+        toast.error(`Failed to save to documents: ${pdfSaveResult.error}`);
+      }
     } catch {
       toast.error("Failed to generate PDF");
     } finally {

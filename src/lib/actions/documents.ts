@@ -449,3 +449,77 @@ export async function publishDocument(id: string): Promise<ActionResult> {
     };
   }
 }
+
+export async function deleteDocument(id: string): Promise<ActionResult> {
+  try {
+    if (!id) return { success: false, error: "Document ID is required" };
+
+    const supabase = createClient();
+
+    const { data: doc } = await supabase
+      .from("documents")
+      .select("id, document_type, period_label, status")
+      .eq("id", id)
+      .single();
+
+    if (!doc) return { success: false, error: "Document not found" };
+
+    if (doc.status === "published") {
+      return { success: false, error: "Cannot delete a published document" };
+    }
+
+    const { error } = await supabase.from("documents").delete().eq("id", id);
+
+    if (error) return { success: false, error: error.message };
+
+    await logAudit({
+      action: "delete",
+      entity_type: "document",
+      entity_id: id,
+      description: `Deleted ${doc.document_type} document: ${doc.period_label ?? id}`,
+    });
+
+    revalidatePath("/pm/documents");
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to delete document",
+    };
+  }
+}
+
+export async function renameDocument(
+  id: string,
+  newLabel: string
+): Promise<ActionResult> {
+  try {
+    if (!id) return { success: false, error: "Document ID is required" };
+    if (!newLabel.trim()) return { success: false, error: "Label cannot be empty" };
+
+    const supabase = createClient();
+
+    const { error } = await supabase
+      .from("documents")
+      .update({ period_label: newLabel.trim() })
+      .eq("id", id);
+
+    if (error) return { success: false, error: error.message };
+
+    await logAudit({
+      action: "update",
+      entity_type: "document",
+      entity_id: id,
+      description: `Renamed document to: ${newLabel.trim()}`,
+      changes: { period_label: newLabel.trim() },
+    });
+
+    revalidatePath("/pm/documents");
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to rename document",
+    };
+  }
+}

@@ -263,7 +263,7 @@ export function BrokerageContent({
         `brokerage-invoice-${selectedOwner.name.replace(/\s+/g, "-").toLowerCase()}`
       );
       // Auto-save document record
-      await createDocument({
+      const docSaveResult = await createDocument({
         document_type: "brokerage_invoice",
         owner_id: selectedOwner.id,
         grand_total: totals.brokerage,
@@ -277,9 +277,14 @@ export function BrokerageContent({
           tds: item.tds,
           net: item.net,
         })),
-      }).catch(() => {});
+      });
 
-      toast.success("PDF downloaded and saved to documents");
+      if (docSaveResult.success) {
+        toast.success("PDF downloaded and saved to documents");
+      } else {
+        toast.success("PDF downloaded");
+        toast.error(`Failed to save to documents: ${docSaveResult.error}`);
+      }
     } catch {
       toast.error("Failed to generate PDF");
     } finally {
@@ -323,7 +328,7 @@ export function BrokerageContent({
         sheetName: "Brokerage Invoice",
       });
       // Auto-save document record
-      await createDocument({
+      const docSaveResult = await createDocument({
         document_type: "brokerage_invoice",
         owner_id: selectedOwner.id,
         grand_total: totals.brokerage,
@@ -337,9 +342,14 @@ export function BrokerageContent({
           tds: item.tds,
           net: item.net,
         })),
-      }).catch(() => {});
+      });
 
-      toast.success("Excel downloaded and saved to documents");
+      if (docSaveResult.success) {
+        toast.success("Excel downloaded and saved to documents");
+      } else {
+        toast.success("Excel downloaded");
+        toast.error(`Failed to save to documents: ${docSaveResult.error}`);
+      }
     } catch {
       toast.error("Failed to export Excel");
     }
