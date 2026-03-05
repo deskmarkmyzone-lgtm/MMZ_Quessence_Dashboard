@@ -30,34 +30,38 @@ export async function updateBankDetails(
   try {
     const supabase = createClient();
 
-    const { error } = await supabase
+    const updateData = {
+      bank_name: input.bank_name,
+      account_holder_name: input.account_holder_name,
+      account_number: input.account_number,
+      ifsc_code: input.ifsc_code,
+      branch_name: input.branch_name ?? null,
+      upi_id: input.upi_id ?? null,
+    };
+
+    // Get the existing settings row (UUID id, not integer)
+    const { data: existing } = await supabase
       .from("mmz_settings")
-      .update({
-        bank_name: input.bank_name,
-        account_holder_name: input.account_holder_name,
-        account_number: input.account_number,
-        ifsc_code: input.ifsc_code,
-        branch_name: input.branch_name ?? null,
-        upi_id: input.upi_id ?? null,
-      })
-      .eq("id", 1);
+      .select("id")
+      .limit(1)
+      .maybeSingle();
 
-    if (error) {
-      // If no row exists yet, try inserting
-      const { error: insertError } = await supabase
+    if (existing) {
+      const { error } = await supabase
         .from("mmz_settings")
-        .upsert({
-          id: 1,
-          bank_name: input.bank_name,
-          account_holder_name: input.account_holder_name,
-          account_number: input.account_number,
-          ifsc_code: input.ifsc_code,
-          branch_name: input.branch_name ?? null,
-          upi_id: input.upi_id ?? null,
-        });
+        .update(updateData)
+        .eq("id", existing.id);
 
-      if (insertError) {
-        return { success: false, error: insertError.message };
+      if (error) {
+        return { success: false, error: error.message };
+      }
+    } else {
+      const { error } = await supabase
+        .from("mmz_settings")
+        .insert(updateData);
+
+      if (error) {
+        return { success: false, error: error.message };
       }
     }
 
@@ -86,35 +90,39 @@ export async function updateInvoiceSettings(
   try {
     const supabase = createClient();
 
-    const { error } = await supabase
+    const updateData = {
+      company_name: input.company_name,
+      company_address: input.company_address ?? null,
+      gstin: input.gstin ?? null,
+      pan: input.pan ?? null,
+      invoice_prefix: input.invoice_prefix ?? null,
+      invoice_footer_note: input.invoice_footer_note ?? null,
+      logo_file_id: input.logo_file_id ?? null,
+    };
+
+    // Get the existing settings row (UUID id, not integer)
+    const { data: existing } = await supabase
       .from("mmz_settings")
-      .update({
-        company_name: input.company_name,
-        company_address: input.company_address ?? null,
-        gstin: input.gstin ?? null,
-        pan: input.pan ?? null,
-        invoice_prefix: input.invoice_prefix ?? null,
-        invoice_footer_note: input.invoice_footer_note ?? null,
-        logo_file_id: input.logo_file_id ?? null,
-      })
-      .eq("id", 1);
+      .select("id")
+      .limit(1)
+      .maybeSingle();
 
-    if (error) {
-      const { error: insertError } = await supabase
+    if (existing) {
+      const { error } = await supabase
         .from("mmz_settings")
-        .upsert({
-          id: 1,
-          company_name: input.company_name,
-          company_address: input.company_address ?? null,
-          gstin: input.gstin ?? null,
-          pan: input.pan ?? null,
-          invoice_prefix: input.invoice_prefix ?? null,
-          invoice_footer_note: input.invoice_footer_note ?? null,
-          logo_file_id: input.logo_file_id ?? null,
-        });
+        .update(updateData)
+        .eq("id", existing.id);
 
-      if (insertError) {
-        return { success: false, error: insertError.message };
+      if (error) {
+        return { success: false, error: error.message };
+      }
+    } else {
+      const { error } = await supabase
+        .from("mmz_settings")
+        .insert(updateData);
+
+      if (error) {
+        return { success: false, error: error.message };
       }
     }
 
@@ -301,24 +309,33 @@ export async function updateCalculationSettings(
 
     const supabase = createClient();
 
-    const { error } = await supabase
+    // Get the existing settings row (UUID id, not integer)
+    const { data: existing } = await supabase
       .from("mmz_settings")
-      .update({
-        maintenance_rate_per_sqft: input.maintenance_rate_per_sqft,
-      })
-      .eq("id", 1);
+      .select("id")
+      .limit(1)
+      .maybeSingle();
 
-    if (error) {
-      // If no row exists yet, try upserting
-      const { error: insertError } = await supabase
+    if (existing) {
+      const { error } = await supabase
         .from("mmz_settings")
-        .upsert({
-          id: 1,
+        .update({
+          maintenance_rate_per_sqft: input.maintenance_rate_per_sqft,
+        })
+        .eq("id", existing.id);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+    } else {
+      const { error } = await supabase
+        .from("mmz_settings")
+        .insert({
           maintenance_rate_per_sqft: input.maintenance_rate_per_sqft,
         });
 
-      if (insertError) {
-        return { success: false, error: insertError.message };
+      if (error) {
+        return { success: false, error: error.message };
       }
     }
 

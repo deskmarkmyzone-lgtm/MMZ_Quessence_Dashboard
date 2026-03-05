@@ -19,12 +19,13 @@ import { downloadPDF } from "@/lib/pdf/download";
 import { createDocument } from "@/lib/actions";
 import { exportToExcel } from "@/lib/excel/export";
 
-// Quarter options
+// Quarter options — Indian Financial Year (Apr–Mar)
 const QUARTER_OPTIONS = [
-  { value: "Q4-2025", label: "Q4 2025 (Oct - Dec)" },
-  { value: "Q3-2025", label: "Q3 2025 (Jul - Sep)" },
-  { value: "Q2-2025", label: "Q2 2025 (Apr - Jun)" },
-  { value: "Q1-2025", label: "Q1 2025 (Jan - Mar)" },
+  { value: "Q4-FY25", label: "Q4 FY25 (Jan - Mar 2025)" },
+  { value: "Q1-FY26", label: "Q1 FY26 (Apr - Jun 2025)" },
+  { value: "Q2-FY26", label: "Q2 FY26 (Jul - Sep 2025)" },
+  { value: "Q3-FY26", label: "Q3 FY26 (Oct - Dec 2025)" },
+  { value: "Q4-FY26", label: "Q4 FY26 (Jan - Mar 2026)" },
 ];
 
 interface Owner {

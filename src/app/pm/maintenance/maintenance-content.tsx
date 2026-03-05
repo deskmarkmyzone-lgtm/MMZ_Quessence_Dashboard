@@ -45,15 +45,16 @@ interface FlatOption {
   owner: string;
 }
 
+// Indian Financial Year quarters (Apr–Mar)
 const QUARTERS = [
-  "Q1-2025",
-  "Q2-2025",
-  "Q3-2025",
-  "Q4-2025",
-  "Q1-2026",
-  "Q2-2026",
-  "Q3-2026",
-  "Q4-2026",
+  "Q4-FY25 (Jan-Mar 2025)",
+  "Q1-FY26 (Apr-Jun 2025)",
+  "Q2-FY26 (Jul-Sep 2025)",
+  "Q3-FY26 (Oct-Dec 2025)",
+  "Q4-FY26 (Jan-Mar 2026)",
+  "Q1-FY27 (Apr-Jun 2026)",
+  "Q2-FY27 (Jul-Sep 2026)",
+  "Q3-FY27 (Oct-Dec 2026)",
 ];
 
 export function MaintenanceContent({
