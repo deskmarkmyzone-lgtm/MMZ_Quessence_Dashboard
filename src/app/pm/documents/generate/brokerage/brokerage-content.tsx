@@ -262,7 +262,24 @@ export function BrokerageContent({
         }),
         `brokerage-invoice-${selectedOwner.name.replace(/\s+/g, "-").toLowerCase()}`
       );
-      toast.success("PDF downloaded successfully");
+      // Auto-save document record
+      await createDocument({
+        document_type: "brokerage_invoice",
+        owner_id: selectedOwner.id,
+        grand_total: totals.brokerage,
+        tds_amount: totals.tds,
+        line_items: lineItems.map((item, idx) => ({
+          slNo: idx + 1,
+          tenant_name: item.tenant_name,
+          flat_number: item.flat_number,
+          inclusive_rent: item.inclusive_rent,
+          brokerage: item.brokerage,
+          tds: item.tds,
+          net: item.net,
+        })),
+      }).catch(() => {});
+
+      toast.success("PDF downloaded and saved to documents");
     } catch {
       toast.error("Failed to generate PDF");
     } finally {
@@ -270,7 +287,7 @@ export function BrokerageContent({
     }
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!selectedOwner || lineItems.length === 0) return;
     try {
       const excelData = lineItems.map((item, idx) => ({
@@ -305,7 +322,24 @@ export function BrokerageContent({
         filename: `brokerage-invoice-${selectedOwner.name.replace(/\s+/g, "-").toLowerCase()}`,
         sheetName: "Brokerage Invoice",
       });
-      toast.success("Excel downloaded successfully");
+      // Auto-save document record
+      await createDocument({
+        document_type: "brokerage_invoice",
+        owner_id: selectedOwner.id,
+        grand_total: totals.brokerage,
+        tds_amount: totals.tds,
+        line_items: lineItems.map((item, idx) => ({
+          slNo: idx + 1,
+          tenant_name: item.tenant_name,
+          flat_number: item.flat_number,
+          inclusive_rent: item.inclusive_rent,
+          brokerage: item.brokerage,
+          tds: item.tds,
+          net: item.net,
+        })),
+      }).catch(() => {});
+
+      toast.success("Excel downloaded and saved to documents");
     } catch {
       toast.error("Failed to export Excel");
     }

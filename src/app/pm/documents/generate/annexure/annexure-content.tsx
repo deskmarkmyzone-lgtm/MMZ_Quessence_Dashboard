@@ -252,7 +252,7 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
   const refundAmount = (selectedFlat?.security_deposit || 0) - totalDeductions;
   const totalItems = rooms.reduce((sum, r) => sum + r.items.length, 0);
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!selectedFlat) return;
     try {
       // Sheet 1: Room inventory
@@ -303,7 +303,24 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
         });
       }
 
-      toast.success("Excel downloaded successfully");
+      // Auto-save document record so it appears in the documents list
+      const lineItems = rooms.map((room) => ({
+        room_name: room.name,
+        items: room.items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          condition: item.condition,
+        })),
+      }));
+      await createDocument({
+        document_type: "flat_annexure",
+        owner_id: selectedFlat.owner_id,
+        period_label: `${annexureType === "move_in" ? "Move-In" : "Move-Out"} - Flat ${selectedFlat.flat_number} - ${annexureDate}`,
+        line_items: lineItems,
+        grand_total: annexureType === "move_out" ? refundAmount : undefined,
+      }).catch(() => {}); // Non-blocking
+
+      toast.success("Excel downloaded and saved to documents");
     } catch {
       toast.error("Failed to export Excel");
     }

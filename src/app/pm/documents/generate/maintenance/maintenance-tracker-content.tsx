@@ -130,7 +130,7 @@ export function MaintenanceTrackerContent({
 
   const [generating, setGenerating] = useState(false);
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!selectedOwner || flatRows.length === 0) return;
     try {
       const sortedQuarters = [...selectedQuarters].sort();
@@ -165,7 +165,23 @@ export function MaintenanceTrackerContent({
         filename: `maintenance-tracker-${selectedOwner.name.replace(/\s+/g, "-").toLowerCase()}`,
         sheetName: "Maintenance Tracker",
       });
-      toast.success("Excel downloaded successfully");
+      // Auto-save document record
+      await createDocument({
+        document_type: "maintenance_tracker",
+        owner_id: selectedOwner.id,
+        period_label: selectedQuarters.sort().join(", "),
+        line_items: flatRows.map((row, idx) => ({
+          slNo: idx + 1,
+          flatNo: row.flat_number,
+          maintenance: row.quarterly_maintenance,
+          quarters: row.quarters,
+          previousPending: row.previous_pending,
+          totalAmount: row.total,
+        })),
+        grand_total: grandTotal,
+      }).catch(() => {});
+
+      toast.success("Excel downloaded and saved to documents");
     } catch {
       toast.error("Failed to export Excel");
     }
@@ -195,7 +211,23 @@ export function MaintenanceTrackerContent({
         }),
         `maintenance-tracker-${selectedOwner.name.replace(/\s+/g, "-").toLowerCase()}`
       );
-      toast.success("PDF downloaded successfully");
+      // Auto-save document record
+      await createDocument({
+        document_type: "maintenance_tracker",
+        owner_id: selectedOwner.id,
+        period_label: selectedQuarters.sort().join(", "),
+        line_items: flatRows.map((row, idx) => ({
+          slNo: idx + 1,
+          flatNo: row.flat_number,
+          maintenance: row.quarterly_maintenance,
+          quarters: row.quarters,
+          previousPending: row.previous_pending,
+          totalAmount: row.total,
+        })),
+        grand_total: grandTotal,
+      }).catch(() => {});
+
+      toast.success("PDF downloaded and saved to documents");
     } catch {
       toast.error("Failed to generate PDF");
     } finally {

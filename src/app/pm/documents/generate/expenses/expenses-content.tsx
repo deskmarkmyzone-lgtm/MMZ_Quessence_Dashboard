@@ -229,7 +229,7 @@ export function ExpensesContent({
     }
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!selectedOwner || flatRows.length === 0) return;
     try {
       const excelData = flatRows.map((row, idx) => ({
@@ -266,7 +266,21 @@ export function ExpensesContent({
         filename: `expenses-bill-${selectedOwner.name.replace(/\s+/g, "-").toLowerCase()}`,
         sheetName: "Expenses Bill",
       });
-      toast.success("Excel downloaded successfully");
+      // Auto-save document record
+      await createDocument({
+        document_type: "expenses_bill",
+        owner_id: selectedOwner.id,
+        period_label: selectedPeriodLabel,
+        grand_total: grandTotal,
+        line_items: flatRows.map((row, idx) => ({
+          slNo: idx + 1,
+          flat_number: row.flat_number,
+          categories: row.categories,
+          total: row.total,
+        })),
+      }).catch(() => {});
+
+      toast.success("Excel downloaded and saved to documents");
     } catch {
       toast.error("Failed to export Excel");
     }
@@ -319,7 +333,21 @@ export function ExpensesContent({
         }),
         `expenses-bill-${selectedOwner.name.replace(/\s+/g, "-").toLowerCase()}`
       );
-      toast.success("PDF downloaded successfully");
+      // Auto-save document record
+      await createDocument({
+        document_type: "expenses_bill",
+        owner_id: selectedOwner.id,
+        period_label: selectedPeriodLabel,
+        grand_total: grandTotal,
+        line_items: flatRows.map((row, idx) => ({
+          slNo: idx + 1,
+          flat_number: row.flat_number,
+          categories: row.categories,
+          total: row.total,
+        })),
+      }).catch(() => {});
+
+      toast.success("PDF downloaded and saved to documents");
     } catch {
       toast.error("Failed to generate PDF");
     } finally {

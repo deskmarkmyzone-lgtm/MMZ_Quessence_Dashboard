@@ -98,7 +98,7 @@ export function RentalCreditContent({
 
   const [generating, setGenerating] = useState(false);
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!selectedFlat || payments.length === 0) return;
     try {
       const excelData = payments.map((p) => ({
@@ -121,7 +121,21 @@ export function RentalCreditContent({
         filename: `rental-credit-flat-${selectedFlat.flat_number}`,
         sheetName: "Rental Credit Report",
       });
-      toast.success("Excel downloaded successfully");
+      // Auto-save document record
+      await createDocument({
+        document_type: "rental_credit_report",
+        owner_id: selectedFlat.owner_id,
+        period_label: `Flat ${selectedFlat.flat_number} - ${selectedFlat.lease_start} to ${selectedFlat.lease_end}`,
+        line_items: payments.map((p) => ({
+          payment_date: p.payment_date,
+          base_rent: p.base_rent_portion,
+          maintenance: p.maintenance_portion,
+          inclusive_rent: p.amount,
+        })),
+        grand_total: totalRentCollected,
+      }).catch(() => {});
+
+      toast.success("Excel downloaded and saved to documents");
     } catch {
       toast.error("Failed to export Excel");
     }
@@ -157,7 +171,21 @@ export function RentalCreditContent({
         }),
         `rental-credit-flat-${selectedFlat.flat_number}`
       );
-      toast.success("PDF downloaded successfully");
+      // Auto-save document record
+      await createDocument({
+        document_type: "rental_credit_report",
+        owner_id: selectedFlat.owner_id,
+        period_label: `Flat ${selectedFlat.flat_number} - ${selectedFlat.lease_start} to ${selectedFlat.lease_end}`,
+        line_items: payments.map((p) => ({
+          payment_date: p.payment_date,
+          base_rent: p.base_rent_portion,
+          maintenance: p.maintenance_portion,
+          inclusive_rent: p.amount,
+        })),
+        grand_total: totalRentCollected,
+      }).catch(() => {});
+
+      toast.success("PDF downloaded and saved to documents");
     } catch {
       toast.error("Failed to generate PDF");
     } finally {
