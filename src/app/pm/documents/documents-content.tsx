@@ -32,11 +32,12 @@ import {
   Pencil,
   AlertTriangle,
   GitCompare,
+  SendHorizontal,
 } from "lucide-react";
 import Link from "next/link";
 import { ExportButtons } from "@/components/shared/export-buttons";
 import { exportToExcel } from "@/lib/excel/export";
-import { deleteDocument, renameDocument } from "@/lib/actions";
+import { deleteDocument, renameDocument, submitForApproval } from "@/lib/actions";
 import { toast } from "sonner";
 import type { DocumentType, DocumentStatus } from "@/types";
 
@@ -243,6 +244,18 @@ export function DocumentsContent({ documents }: DocumentsContentProps) {
       router.refresh();
     } else {
       toast.error(result.error ?? "Failed to delete document");
+    }
+  };
+
+  const handleSubmitForApproval = async (docId: string) => {
+    setActionLoading(true);
+    const result = await submitForApproval(docId);
+    setActionLoading(false);
+    if (result.success) {
+      toast.success("Document submitted for approval");
+      router.refresh();
+    } else {
+      toast.error(result.error ?? "Failed to submit for approval");
     }
   };
 
@@ -497,6 +510,18 @@ export function DocumentsContent({ documents }: DocumentsContentProps) {
                           onClick={() => setCompareDocs([doc, dupePartners[0]])}
                         >
                           <GitCompare className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      )}
+                      {(doc.status === "draft" || doc.status === "approved") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-text-muted hover:text-accent"
+                          aria-label="Send for approval"
+                          disabled={actionLoading}
+                          onClick={() => handleSubmitForApproval(doc.id)}
+                        >
+                          <SendHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
                         </Button>
                       )}
                       <Button
