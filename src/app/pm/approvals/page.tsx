@@ -1,9 +1,13 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { ApprovalsContent } from "./approvals-content";
+import { getCurrentPmUserWithRole, canApprove } from "@/lib/dal/auth";
 
 export default async function ApprovalsPage() {
   const supabase = createClient();
+
+  const pmUser = await getCurrentPmUserWithRole();
+  const userCanApprove = pmUser ? canApprove(pmUser.role) : false;
 
   const { data: pendingDocs } = await supabase
     .from("documents")
@@ -37,7 +41,11 @@ export default async function ApprovalsPage() {
         </div>
       }
     >
-      <ApprovalsContent approvals={approvals} />
+      <ApprovalsContent
+        approvals={approvals}
+        canApprove={userCanApprove}
+        userRole={pmUser?.role ?? "manager"}
+      />
     </Suspense>
   );
 }

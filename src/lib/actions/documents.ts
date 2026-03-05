@@ -3,9 +3,29 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "./types";
-import type { DocumentType } from "@/types";
+import type { DocumentType, UserRole } from "@/types";
 import { logAudit } from "./audit";
 import { createNotification } from "./notifications";
+
+/** Helper: get current PM user's id and role */
+async function getCurrentPmUser(): Promise<{ id: string; role: UserRole } | null> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data } = await supabase
+    .from("pm_users")
+    .select("id, role")
+    .eq("auth_user_id", user.id)
+    .eq("is_active", true)
+    .single();
+  return data as { id: string; role: UserRole } | null;
+}
+
+function canApprove(role: UserRole): boolean {
+  return role === "super_admin" || role === "admin";
+}
 
 export interface DocumentInput {
   document_type: DocumentType;
@@ -143,16 +163,13 @@ export async function submitForApproval(id: string): Promise<ActionResult> {
 
 export async function approveDocument(id: string): Promise<ActionResult> {
   try {
-    const supabase = createClient();
+    const pmUser = await getCurrentPmUser();
+    if (!pmUser) return { success: false, error: "Not authenticated" };
+    if (!canApprove(pmUser.role)) {
+      return { success: false, error: "Only admins and super admins can approve documents" };
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const { data: pmUser } = await supabase
-      .from("pm_users")
-      .select("id")
-      .eq("auth_user_id", user?.id)
-      .single();
+    const supabase = createClient();
 
     // Fetch document to get submitter info for notification
     const { data: doc } = await supabase
@@ -165,7 +182,7 @@ export async function approveDocument(id: string): Promise<ActionResult> {
       .from("documents")
       .update({
         status: "approved",
-        approved_by: pmUser?.id ?? null,
+        approved_by: pmUser.id,
         approved_at: new Date().toISOString(),
       })
       .eq("id", id);
@@ -175,7 +192,7 @@ export async function approveDocument(id: string): Promise<ActionResult> {
     }
 
     // Notify the submitter that their document was approved
-    if (doc?.submitted_by && doc.submitted_by !== pmUser?.id) {
+    if (doc?.submitted_by && doc.submitted_by !== pmUser.id) {
       await createNotification({
         recipient_type: "pm",
         recipient_id: doc.submitted_by,
@@ -213,16 +230,13 @@ export async function rejectDocument(
   reason: string
 ): Promise<ActionResult> {
   try {
-    const supabase = createClient();
+    const pmUser = await getCurrentPmUser();
+    if (!pmUser) return { success: false, error: "Not authenticated" };
+    if (!canApprove(pmUser.role)) {
+      return { success: false, error: "Only admins and super admins can reject documents" };
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const { data: pmUser } = await supabase
-      .from("pm_users")
-      .select("id")
-      .eq("auth_user_id", user?.id)
-      .single();
+    const supabase = createClient();
 
     // Fetch document to get submitter info for notification
     const { data: doc } = await supabase
@@ -236,7 +250,7 @@ export async function rejectDocument(
       .update({
         status: "rejected",
         rejection_reason: reason,
-        rejected_by: pmUser?.id ?? null,
+        rejected_by: pmUser.id,
         rejected_at: new Date().toISOString(),
       })
       .eq("id", id);
@@ -246,7 +260,7 @@ export async function rejectDocument(
     }
 
     // Notify the submitter that their document was rejected
-    if (doc?.submitted_by && doc.submitted_by !== pmUser?.id) {
+    if (doc?.submitted_by && doc.submitted_by !== pmUser.id) {
       await createNotification({
         recipient_type: "pm",
         recipient_id: doc.submitted_by,
@@ -383,16 +397,13 @@ export async function recordDocumentPayment(
 
 export async function publishDocument(id: string): Promise<ActionResult> {
   try {
-    const supabase = createClient();
+    const pmUser = await getCurrentPmUser();
+    if (!pmUser) return { success: false, error: "Not authenticated" };
+    if (!canApprove(pmUser.role)) {
+      return { success: false, error: "Only admins and super admins can publish documents" };
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const { data: pmUser } = await supabase
-      .from("pm_users")
-      .select("id")
-      .eq("auth_user_id", user?.id)
-      .single();
+    const supabase = createClient();
 
     // Get document details for the notification
     const { data: doc, error: fetchError } = await supabase
@@ -409,7 +420,7 @@ export async function publishDocument(id: string): Promise<ActionResult> {
       .from("documents")
       .update({
         status: "published",
-        published_by: pmUser?.id ?? null,
+        published_by: pmUser.id,
         published_at: new Date().toISOString(),
       })
       .eq("id", id);
@@ -453,6 +464,12 @@ export async function publishDocument(id: string): Promise<ActionResult> {
 export async function deleteDocument(id: string): Promise<ActionResult> {
   try {
     if (!id) return { success: false, error: "Document ID is required" };
+
+    const pmUser = await getCurrentPmUser();
+    if (!pmUser) return { success: false, error: "Not authenticated" };
+    if (!canApprove(pmUser.role)) {
+      return { success: false, error: "Only admins and super admins can delete documents" };
+    }
 
     const supabase = createClient();
 

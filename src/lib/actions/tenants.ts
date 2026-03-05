@@ -311,7 +311,20 @@ export async function exitTenant(
 
 export async function reactivateTenant(tenantId: string): Promise<ActionResult> {
   try {
+    // Role check: only admin/super_admin can undo tenant exits
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: pmUser } = await supabase
+        .from("pm_users")
+        .select("role")
+        .eq("auth_user_id", user.id)
+        .eq("is_active", true)
+        .single();
+      if (pmUser && pmUser.role === "manager") {
+        return { success: false, error: "Only admins and super admins can undo tenant exits. Please contact your admin." };
+      }
+    }
 
     const { data: tenant, error: fetchError } = await supabase
       .from("tenants")

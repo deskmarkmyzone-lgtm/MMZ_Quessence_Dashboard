@@ -4,6 +4,9 @@ export {
   getPmUser,
   getOwnerByAuthId,
   getOwnerByEmail,
+  getCurrentPmUserWithRole,
+  canApprove,
+  canDelete,
 } from "./auth";
 
 // Communities
