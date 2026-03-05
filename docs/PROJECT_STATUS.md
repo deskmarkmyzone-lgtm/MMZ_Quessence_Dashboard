@@ -1,6 +1,6 @@
 # MMZ Dashboard — Project Status & Handoff Document
 
-> **Last Updated**: 2026-03-02
+> **Last Updated**: 2026-03-05
 >
 > This document tracks what has been built, what's left, and everything a new developer
 > needs to pick this project up. For the full business requirements, data model, and
@@ -65,7 +65,7 @@ For the full business context, see [REQUIREMENTS.md sections 1-6](./REQUIREMENTS
 | Owner Portal Pages | 8 |
 | Shared Pages (Login, etc.) | 5 |
 | Data Access Layer Functions | 42+ |
-| Server Action Functions | 34+ |
+| Server Action Functions | 36+ |
 | Shared UI Components | 13 |
 | Form Components | 6 |
 | PDF Templates | 6 |
@@ -380,6 +380,13 @@ Every page follows the same pattern:
 - [x] PDF generation — @react-pdf/renderer with templates matching Excel formats
 - [x] Excel export — xlsx (SheetJS) export from any list view
 - [x] Tenant Exit Wizard — 3-step (confirm → deposit deductions → generate PDF + mark vacant)
+- [x] Rent payment history in annexure — auto-fetches all rent payments for selected flat, shown in annexure PDF/Excel
+- [x] Auto-save documents — all 5 generators (brokerage, expenses, maintenance, rental credit, annexure) auto-save to documents list on PDF or Excel export
+- [x] Document management — duplicate detection, rename, delete, and side-by-side compare on documents page
+- [x] Duplicate detection — flags documents with same type + owner + period, warning banner, per-row indicators
+- [x] Document rename — update period labels via rename dialog
+- [x] Document delete — confirmation dialog, blocks deletion of published documents, audit-logged
+- [x] Document compare — side-by-side view of duplicate documents with line-item diff highlighting
 
 ---
 

@@ -2,8 +2,8 @@
 
 > **Project:** Mark My Zone Property Management Dashboard
 > **Version:** 1.0
-> **Date:** 2026-03-02
-> **Total Test Cases:** 198
+> **Date:** 2026-03-05
+> **Total Test Cases:** 206
 > **Framework:** Next.js 14 (App Router), Supabase, TypeScript
 > **Portals:** PM (Property Manager) and Owner
 
@@ -1438,6 +1438,94 @@
 - **Priority**: High
 - **Status**: Not Tested
 
+### TC-DOC-013: Auto-Save Document on PDF Export
+
+- **Precondition**: PM user is on any document generator (brokerage, expenses, maintenance, rental credit, annexure)
+- **Steps**:
+  1. Fill in the document generator form and generate a preview
+  2. Click "Download PDF"
+  3. Navigate to `/pm/documents`
+- **Expected Result**: The document appears in the documents list with status "draft" and correct type, owner, period, and total. A toast notification confirms "PDF downloaded and saved to documents". If auto-save fails, an error toast shows the specific error.
+- **Priority**: High
+- **Status**: Not Tested
+
+### TC-DOC-014: Auto-Save Document on Excel Export
+
+- **Precondition**: PM user is on any document generator
+- **Steps**:
+  1. Fill in the document generator form
+  2. Click "Export Excel"
+  3. Navigate to `/pm/documents`
+- **Expected Result**: The document appears in the documents list alongside the Excel download. Toast notification confirms save or shows specific error if save fails.
+- **Priority**: High
+- **Status**: Not Tested
+
+### TC-DOC-015: Duplicate Detection on Documents Page
+
+- **Precondition**: Two or more documents exist with the same `document_type`, `owner_id`, and `period_label`
+- **Steps**:
+  1. Navigate to `/pm/documents`
+  2. Observe the page
+- **Expected Result**: A yellow warning banner appears showing the number of duplicate document groups. Duplicate rows have a yellow background tint and a copy icon next to the document number. A compare button (GitCompare icon) appears in the actions column for each duplicate.
+- **Priority**: High
+- **Status**: Not Tested
+
+### TC-DOC-016: Compare Duplicate Documents
+
+- **Precondition**: Duplicate documents exist (same type + owner + period)
+- **Steps**:
+  1. Navigate to `/pm/documents`
+  2. Click the compare button on a duplicate document row
+  3. Review the comparison dialog
+- **Expected Result**: A dialog shows two columns (Document A / Older and Document B / Newer) with metadata (type, owner, period, amount, created date, line item count). If documents are identical, a green "identical" banner appears. If different, a diff table shows field-by-field differences between line items. Delete buttons appear for non-published documents.
+- **Priority**: High
+- **Status**: Not Tested
+
+### TC-DOC-017: Delete Document from Documents Page
+
+- **Precondition**: A non-published document exists
+- **Steps**:
+  1. Navigate to `/pm/documents`
+  2. Click the trash icon on a draft/approved document
+  3. Review the confirmation dialog showing document details
+  4. Click "Delete"
+- **Expected Result**: Document is deleted from the database. Toast shows "Document deleted". Page refreshes and document no longer appears in the list. Audit log entry is created.
+- **Priority**: High
+- **Status**: Not Tested
+
+### TC-DOC-018: Prevent Deletion of Published Documents
+
+- **Precondition**: A published document exists
+- **Steps**:
+  1. Navigate to `/pm/documents`
+  2. Observe the actions column for the published document
+- **Expected Result**: No delete (trash) icon is shown for published documents. In the compare dialog, published documents show "Published documents cannot be deleted" message instead of a delete button.
+- **Priority**: High
+- **Status**: Not Tested
+
+### TC-DOC-019: Rename Document
+
+- **Precondition**: A document exists with a period label
+- **Steps**:
+  1. Navigate to `/pm/documents`
+  2. Click the pencil icon on any document
+  3. Update the period label in the rename dialog
+  4. Click "Save"
+- **Expected Result**: Document's period label is updated in the database. Toast shows "Document renamed". Page refreshes with the new label. Audit log entry is created with the new label.
+- **Priority**: Medium
+- **Status**: Not Tested
+
+### TC-DOC-020: Flat Annexure -- Rent Payment History
+
+- **Precondition**: A flat has rent payment records in the database
+- **Steps**:
+  1. Navigate to `/pm/documents/generate/annexure`
+  2. Select a flat that has rent payments
+  3. Observe the annexure preview
+- **Expected Result**: A "Rent Payment History" section appears in the annexure showing all rent payments for the flat: payment date, month, amount (in ₹), payment method, and status. The same section appears in the generated PDF and Excel export.
+- **Priority**: High
+- **Status**: Not Tested
+
 ---
 
 ## Module 11: Approvals Workflow
@@ -2460,7 +2548,7 @@
 | 7 | Rent Payments | 11 | 3 | 5 | 2 | 1 |
 | 8 | Expenses | 8 | 2 | 3 | 2 | 1 |
 | 9 | Community Maintenance | 4 | 1 | 2 | 1 | 0 |
-| 10 | Document Generation | 12 | 3 | 7 | 1 | 1 |
+| 10 | Document Generation | 20 | 5 | 12 | 2 | 1 |
 | 11 | Approvals Workflow | 9 | 4 | 2 | 2 | 1 |
 | 12 | Analytics | 5 | 0 | 3 | 2 | 0 |
 | 13 | Reports | 4 | 1 | 3 | 0 | 0 |
