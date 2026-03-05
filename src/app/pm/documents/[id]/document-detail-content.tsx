@@ -22,6 +22,7 @@ import {
   CreditCard,
   Hash,
   MessageCircle,
+  Undo2,
 } from "lucide-react";
 import {
   Dialog,
@@ -48,6 +49,7 @@ import {
   rejectDocument,
   publishDocument,
   recordDocumentPayment,
+  reactivateTenant,
 } from "@/lib/actions";
 import { exportToExcel } from "@/lib/excel/export";
 import type { DocumentType, DocumentStatus } from "@/types";
@@ -125,6 +127,12 @@ interface DocumentDetailProps {
     changes: Record<string, any> | null;
     created_at: string;
   }[];
+  /** For flat_annexure move-out docs: tenant ID to undo the exit */
+  moveOutTenantId?: string | null;
+  /** For flat_annexure move-out docs: flat number for display */
+  moveOutFlatNumber?: string | null;
+  /** Whether the current user can undo exits (admin/super_admin) */
+  canUndoExit?: boolean;
 }
 
 // ===== Helpers =====
@@ -136,9 +144,10 @@ function formatCurrency(value: number | null): string {
 
 // ===== Component =====
 
-export function DocumentDetailContent({ document: doc, bankDetails, auditHistory }: DocumentDetailProps) {
+export function DocumentDetailContent({ document: doc, bankDetails, auditHistory, moveOutTenantId, moveOutFlatNumber, canUndoExit }: DocumentDetailProps) {
   const router = useRouter();
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [exitUndone, setExitUndone] = useState(false);
 
   const handleSubmitForApproval = async () => {
     setLoadingAction("submit");
@@ -206,6 +215,25 @@ export function DocumentDetailContent({ document: doc, bankDetails, auditHistory
       }
     } catch {
       toast.error("Failed to publish document");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleUndoExit = async () => {
+    if (!moveOutTenantId) return;
+    setLoadingAction("undo");
+    try {
+      const result = await reactivateTenant(moveOutTenantId);
+      if (result.success) {
+        setExitUndone(true);
+        toast.success(`Undo successful — Flat ${moveOutFlatNumber} is occupied again`);
+        router.refresh();
+      } else {
+        toast.error(result.error ?? "Failed to undo tenant exit");
+      }
+    } catch {
+      toast.error("Failed to undo tenant exit");
     } finally {
       setLoadingAction(null);
     }
@@ -377,43 +405,39 @@ export function DocumentDetailContent({ document: doc, bankDetails, auditHistory
                 Publish to Owner
               </Button>
             )}
-            {(doc.status === "published" || doc.status === "approved") && (
-              <>
-                <Button
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={handleExportExcel}
-                  disabled={isLoading || doc.line_items.length === 0}
-                >
-                  <FileText className="h-4 w-4" />
-                  Excel
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={handleDownloadPDF}
-                  disabled={isLoading}
-                >
-                  {loadingAction === "pdf" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4" />
-                  )}
-                  Download PDF
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gap-1.5 text-success border-success/30 hover:bg-success/10"
-                  onClick={() => {
-                    const text = `${DOC_TYPE_LABELS[doc.document_type]} — ${doc.document_number ?? "Draft"}\nOwner: ${doc.owner_name}\nAmount: ${formatCurrency(doc.grand_total)}\n\nView: ${window.location.href}`;
-                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
-                  }}
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  WhatsApp
-                </Button>
-              </>
-            )}
+            <Button
+              variant="outline"
+              className="gap-1.5"
+              onClick={handleExportExcel}
+              disabled={isLoading || doc.line_items.length === 0}
+            >
+              <FileText className="h-4 w-4" />
+              Excel
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-1.5"
+              onClick={handleDownloadPDF}
+              disabled={isLoading}
+            >
+              {loadingAction === "pdf" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              PDF
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-1.5 text-success border-success/30 hover:bg-success/10"
+              onClick={() => {
+                const text = `${DOC_TYPE_LABELS[doc.document_type]} — ${doc.document_number ?? "Draft"}\nOwner: ${doc.owner_name}\nAmount: ${formatCurrency(doc.grand_total)}\n\nView: ${window.location.href}`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+              }}
+            >
+              <MessageCircle className="h-4 w-4" />
+              WhatsApp
+            </Button>
           </div>
         </div>
       </div>
@@ -428,6 +452,46 @@ export function DocumentDetailContent({ document: doc, bankDetails, auditHistory
               Reason: {doc.rejection_reason}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Undo Exit Banner — for flat_annexure move-out documents */}
+      {doc.document_type === "flat_annexure" && doc.period_label?.startsWith("Move-Out") && moveOutTenantId && !exitUndone && (
+        <div className="mb-6 bg-warning/10 border border-warning/30 rounded-lg px-4 py-3 flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+          <div>
+            <p className="text-body-sm text-text-primary font-medium">
+              Tenant exit was completed for Flat {moveOutFlatNumber}
+            </p>
+            <p className="text-caption text-text-secondary">
+              {canUndoExit
+                ? "If this was done by mistake, you can undo the exit to reactivate the tenant."
+                : "Contact an admin to undo this exit if needed."}
+            </p>
+          </div>
+          {canUndoExit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUndoExit}
+              disabled={isLoading}
+              className="border-warning text-warning hover:bg-warning/10 shrink-0"
+            >
+              {loadingAction === "undo" ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Undo2 className="h-4 w-4 mr-1.5" />
+              )}
+              {loadingAction === "undo" ? "Undoing..." : "Undo Exit"}
+            </Button>
+          )}
+        </div>
+      )}
+      {exitUndone && (
+        <div className="mb-6 bg-success/10 border border-success/30 rounded-lg px-4 py-3 flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+          <p className="text-body-sm text-success font-medium">
+            Tenant exit undone — Flat {moveOutFlatNumber} is occupied again
+          </p>
         </div>
       )}
 

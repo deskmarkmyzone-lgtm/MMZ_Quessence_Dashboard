@@ -338,29 +338,33 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
         });
       }
 
-      // Auto-save document record so it appears in the documents list
-      const lineItems = rooms.map((room) => ({
-        room_name: room.name,
-        items: room.items.map((item) => ({
-          description: item.description,
-          quantity: item.quantity,
-          condition: item.condition,
-        })),
-      }));
-      const saveResult = await createDocument({
-        document_type: "flat_annexure",
-        owner_id: selectedFlat.owner_id,
-        period_label: `${annexureType === "move_in" ? "Move-In" : "Move-Out"} - Flat ${selectedFlat.flat_number} - ${annexureDate}`,
-        line_items: lineItems,
-        grand_total: annexureType === "move_out" ? refundAmount : undefined,
-      });
+      // Auto-save document record (skip if exit already saved it)
+      if (!exitCompleted) {
+        const lineItems = rooms.map((room) => ({
+          room_name: room.name,
+          items: room.items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            condition: item.condition,
+          })),
+        }));
+        const saveResult = await createDocument({
+          document_type: "flat_annexure",
+          owner_id: selectedFlat.owner_id,
+          period_label: `${annexureType === "move_in" ? "Move-In" : "Move-Out"} - Flat ${selectedFlat.flat_number} - ${annexureDate}`,
+          line_items: lineItems,
+          grand_total: annexureType === "move_out" ? refundAmount : undefined,
+        });
 
-      if (saveResult.success) {
-        toast.success("Excel downloaded and saved to documents");
+        if (saveResult.success) {
+          toast.success("Excel downloaded and saved to documents");
+        } else {
+          console.error("Auto-save failed:", saveResult.error);
+          toast.success("Excel downloaded");
+          toast.error(`Failed to save to documents: ${saveResult.error}`);
+        }
       } else {
-        console.error("Auto-save failed:", saveResult.error);
         toast.success("Excel downloaded");
-        toast.error(`Failed to save to documents: ${saveResult.error}`);
       }
     } catch {
       toast.error("Failed to export Excel");
@@ -420,29 +424,33 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
         `flat-annexure-${selectedFlat.flat_number}`
       );
 
-      // Auto-save document record so it appears in the documents list
-      const lineItems = rooms.map((room) => ({
-        room_name: room.name,
-        items: room.items.map((item) => ({
-          description: item.description,
-          quantity: item.quantity,
-          condition: item.condition,
-        })),
-      }));
-      const saveResult = await createDocument({
-        document_type: "flat_annexure",
-        owner_id: selectedFlat.owner_id,
-        period_label: `${annexureType === "move_in" ? "Move-In" : "Move-Out"} - Flat ${selectedFlat.flat_number} - ${annexureDate}`,
-        line_items: lineItems,
-        grand_total: annexureType === "move_out" ? refundAmount : undefined,
-      });
+      // Auto-save document record (skip if exit already saved it)
+      if (!exitCompleted) {
+        const lineItems = rooms.map((room) => ({
+          room_name: room.name,
+          items: room.items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            condition: item.condition,
+          })),
+        }));
+        const saveResult = await createDocument({
+          document_type: "flat_annexure",
+          owner_id: selectedFlat.owner_id,
+          period_label: `${annexureType === "move_in" ? "Move-In" : "Move-Out"} - Flat ${selectedFlat.flat_number} - ${annexureDate}`,
+          line_items: lineItems,
+          grand_total: annexureType === "move_out" ? refundAmount : undefined,
+        });
 
-      if (saveResult.success) {
-        toast.success("PDF downloaded and saved to documents");
+        if (saveResult.success) {
+          toast.success("PDF downloaded and saved to documents");
+        } else {
+          console.error("Auto-save failed:", saveResult.error);
+          toast.success("PDF downloaded");
+          toast.error(`Failed to save to documents: ${saveResult.error}`);
+        }
       } else {
-        console.error("Auto-save failed:", saveResult.error);
         toast.success("PDF downloaded");
-        toast.error(`Failed to save to documents: ${saveResult.error}`);
       }
     } catch {
       toast.error("Failed to generate PDF");
