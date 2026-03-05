@@ -490,6 +490,30 @@ export function AnnexureContent({ flats }: AnnexureContentProps) {
     setExitingTenant(true);
     setShowExitConfirm(false);
     try {
+      // Step 1: Auto-save the annexure document FIRST so work is never lost
+      const lineItems = rooms.map((room) => ({
+        room_name: room.name,
+        items: room.items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          condition: item.condition,
+        })),
+      }));
+      const saveResult = await createDocument({
+        document_type: "flat_annexure",
+        owner_id: selectedFlat.owner_id,
+        period_label: `Move-Out - Flat ${selectedFlat.flat_number} - ${annexureDate}`,
+        line_items: lineItems,
+        grand_total: refundAmount,
+      });
+      if (saveResult.success) {
+        toast.success("Annexure saved to documents");
+      } else {
+        console.error("Auto-save failed:", saveResult.error);
+        toast.error(`Failed to save annexure: ${saveResult.error}`);
+      }
+
+      // Step 2: Exit the tenant and mark flat as vacant
       const result = await exitTenant(selectedFlat.tenant_id, {
         exit_date: annexureDate,
         exit_reason: "Move-out annexure generated",

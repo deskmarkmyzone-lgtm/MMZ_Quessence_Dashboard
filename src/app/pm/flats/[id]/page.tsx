@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { FlatDetailContent } from "./flat-detail-content";
 import { getRentRevisions } from "@/lib/dal/flats";
+import { getCurrentPmUserWithRole, canApprove } from "@/lib/dal/auth";
 import type { Note } from "@/lib/actions/notes";
 
 export default async function FlatDetailPage({
@@ -95,6 +96,31 @@ export default async function FlatDetailPage({
     .eq("flat_id", params.id)
     .order("created_at", { ascending: false });
 
+  // If flat is vacant, fetch the last exited tenant for undo capability
+  let lastExitedTenant: { id: string; name: string; exit_date: string; exit_reason: string } | null = null;
+  if (flat.status === "vacant") {
+    const { data: exitedTenant } = await supabase
+      .from("tenants")
+      .select("id, name, exit_date, exit_reason")
+      .eq("flat_id", params.id)
+      .eq("is_active", false)
+      .order("exit_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (exitedTenant?.exit_date) {
+      lastExitedTenant = {
+        id: exitedTenant.id,
+        name: exitedTenant.name,
+        exit_date: exitedTenant.exit_date,
+        exit_reason: exitedTenant.exit_reason ?? "",
+      };
+    }
+  }
+
+  // Check if user has admin/super_admin role (for undo exit)
+  const pmUser = await getCurrentPmUserWithRole();
+  const userCanApprove = pmUser ? canApprove(pmUser.role) : false;
+
   // Build agreement file URL if tenant has one
   let agreementUrl: string | null = null;
   if (tenant?.agreement_file_id) {
@@ -105,6 +131,8 @@ export default async function FlatDetailPage({
     <FlatDetailContent
       flat={flat}
       tenant={tenant ?? null}
+      lastExitedTenant={lastExitedTenant}
+      canUndoExit={userCanApprove}
       rentHistory={rentWithProofs}
       expenses={expensesWithReceipts}
       rentRevisions={rentRevisions}

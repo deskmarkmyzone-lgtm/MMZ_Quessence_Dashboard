@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Edit, User, Building2, IndianRupee,
   Calendar, Home, Wrench, CreditCard, Eye,
   Shield, FileText, ExternalLink, AlertTriangle, Clock,
-  ClipboardList, Plus
+  ClipboardList, Plus, Undo2, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +14,8 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { ImageViewer } from "@/components/shared/image-viewer";
 import { NotesSection } from "@/components/shared/notes-section";
 import Link from "next/link";
+import { toast } from "sonner";
+import { reactivateTenant } from "@/lib/actions";
 import type { Tenant } from "@/types";
 import type { Note } from "@/lib/actions/notes";
 
@@ -83,6 +86,8 @@ interface AnnexureSummary {
 interface FlatDetailContentProps {
   flat: FlatData;
   tenant: Tenant | null;
+  lastExitedTenant: { id: string; name: string; exit_date: string; exit_reason: string } | null;
+  canUndoExit: boolean;
   rentHistory: RentPaymentWithProofs[];
   expenses: ExpenseWithReceipts[];
   rentRevisions: RentRevision[];
@@ -91,9 +96,11 @@ interface FlatDetailContentProps {
   annexures: AnnexureSummary[];
 }
 
-export function FlatDetailContent({ flat, tenant, rentHistory, expenses, rentRevisions, notes, agreementUrl, annexures }: FlatDetailContentProps) {
+export function FlatDetailContent({ flat, tenant, lastExitedTenant, canUndoExit, rentHistory, expenses, rentRevisions, notes, agreementUrl, annexures }: FlatDetailContentProps) {
+  const router = useRouter();
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerImages, setViewerImages] = useState<{ src: string; alt?: string }[]>([]);
+  const [undoing, setUndoing] = useState(false);
 
   // Lease calculations
   const leaseEndDate = tenant?.lease_end_date ? new Date(tenant.lease_end_date) : null;
@@ -101,6 +108,24 @@ export function FlatDetailContent({ flat, tenant, rentHistory, expenses, rentRev
   const now = new Date();
   const daysRemaining = leaseEndDate ? Math.ceil((leaseEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
   const leaseExpiringSoon = daysRemaining !== null && daysRemaining >= 0 && daysRemaining <= 60;
+
+  const handleUndoExit = async () => {
+    if (!lastExitedTenant) return;
+    setUndoing(true);
+    try {
+      const result = await reactivateTenant(lastExitedTenant.id);
+      if (result.success) {
+        toast.success(`Undo successful — ${lastExitedTenant.name} is active again, flat is occupied`);
+        router.refresh();
+      } else {
+        toast.error(result.error ?? "Failed to undo tenant exit");
+      }
+    } catch {
+      toast.error("Failed to undo tenant exit");
+    } finally {
+      setUndoing(false);
+    }
+  };
 
   const openProofViewer = (urls: string[], label: string) => {
     if (urls.length === 0) return;
@@ -149,6 +174,39 @@ export function FlatDetailContent({ flat, tenant, rentHistory, expenses, rentRev
           </Button>
         </Link>
       </div>
+
+      {/* Undo Exit Banner (shown for vacant flats with a recent exit) */}
+      {flat.status === "vacant" && lastExitedTenant && (
+        <div className="bg-warning/10 border border-warning/30 rounded-lg px-4 py-3 mb-6 flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+          <div>
+            <p className="text-body-sm text-text-primary font-medium">
+              Last tenant: {lastExitedTenant.name}
+            </p>
+            <p className="text-caption text-text-secondary">
+              Exited on {new Date(lastExitedTenant.exit_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+              {lastExitedTenant.exit_reason ? ` · ${lastExitedTenant.exit_reason}` : ""}
+            </p>
+          </div>
+          {canUndoExit ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUndoExit}
+              disabled={undoing}
+              className="border-warning text-warning hover:bg-warning/10 shrink-0"
+            >
+              {undoing ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Undo2 className="h-4 w-4 mr-1.5" />
+              )}
+              {undoing ? "Undoing..." : "Undo Exit & Reactivate"}
+            </Button>
+          ) : (
+            <p className="text-caption text-text-muted italic">Contact an admin to undo this exit</p>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
