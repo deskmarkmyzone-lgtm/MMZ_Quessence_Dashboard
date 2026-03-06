@@ -458,7 +458,7 @@ export function DocumentDetailContent({ document: doc, bankDetails, auditHistory
             </Button>
             <Button
               variant="outline"
-              className="gap-1.5 text-success border-success/30 hover:bg-success/10"
+              className="gap-1.5 text-success border-success/40 hover:bg-success/15 hover:text-success hover:border-success/60"
               onClick={() => {
                 const text = `${DOC_TYPE_LABELS[doc.document_type]} — ${doc.document_number ?? "Draft"}\nOwner: ${doc.owner_name}\nAmount: ${formatCurrency(doc.grand_total)}\n\nView: ${window.location.href}`;
                 window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
